@@ -106,18 +106,23 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnRunStop).setOnClickListener(v -> sendCommand("S", "切换 [运行/暂停] 状态"));
     }
 
-    // 高亮当前选中的 Y 轴倍数按钮
+    // 更新 Y 轴按键的高亮与普通浅蓝状态
     private void updateYScaleUI(int scale) {
         tvYScaleLabel.setText("Y轴垂直缩放 / 分辨率控制 (当前: ×" + scale + ")");
-        int activeColor = Color.parseColor("#059669");
-        int normalColor = Color.parseColor("#334155");
+        int activeColor = Color.parseColor("#2563EB"); // 选中时：深蓝
+        int normalColor = Color.parseColor("#BAE6FD"); // 未选中时：浅蓝
+        int textColorActive = Color.parseColor("#FFFFFF");
+        int textColorNormal = Color.parseColor("#0F172A");
 
-        btnY1.setBackgroundTintList(ColorStateList.valueOf(scale == 1 ? activeColor : normalColor));
-        btnY2.setBackgroundTintList(ColorStateList.valueOf(scale == 2 ? activeColor : normalColor));
-        btnY4.setBackgroundTintList(ColorStateList.valueOf(scale == 4 ? activeColor : normalColor));
-        btnY8.setBackgroundTintList(ColorStateList.valueOf(scale == 8 ? activeColor : normalColor));
+        Button[] buttons = {btnY1, btnY2, btnY4, btnY8};
+        int[] scales = {1, 2, 4, 8};
+
+        for (int i = 0; i < buttons.length; i++) {
+            boolean isSelected = (scales[i] == scale);
+            buttons[i].setBackgroundTintList(ColorStateList.valueOf(isSelected ? activeColor : normalColor));
+            buttons[i].setTextColor(isSelected ? textColorActive : textColorNormal);
+        }
     }
-
     private void requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
