@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#12161F"
+    android:background="#FFFFFF"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,7 +16,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1E2433"
+            android:background="#F1F5F9"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:padding="14dp">
@@ -30,7 +31,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="远程简易示波器终端"
-                    android:textColor="#FFFFFF"
+                    android:textColor="#0F172A"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -40,29 +41,30 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="状态：未连接 (JDY-31-SPP)"
-                    android:textColor="#FF6B6B"
+                    android:textColor="#EF4444"
                     android:textSize="12sp" />
             </LinearLayout>
 
             <Button
                 android:id="@+id/btnConnect"
                 android:layout_width="wrap_content"
-                android:layout_height="42dp"
+                android:layout_height="44dp"
                 android:backgroundTint="#2563EB"
                 android:text="连接蓝牙"
                 android:textColor="#FFFFFF"
                 android:textSize="13sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
         </LinearLayout>
 
-        <!-- 实时测量参数仪表盘 (基本要求 1.a / 1.c) -->
+        <!-- 实时测量参数仪表盘 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:text="实时信号参数监测 (0Hz - 5MHz)"
-            android:textColor="#94A3B8"
+            android:textColor="#475569"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -77,7 +79,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                android:background="#1E2433"
+                android:background="#F1F5F9"
                 android:orientation="vertical"
                 android:padding="12dp">
 
@@ -85,7 +87,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="直流平均电压 (Vavg)"
-                    android:textColor="#94A3B8"
+                    android:textColor="#64748B"
                     android:textSize="12sp" />
 
                 <TextView
@@ -95,7 +97,7 @@
                     android:layout_marginTop="6dp"
                     android:fontFamily="monospace"
                     android:text="-- V"
-                    android:textColor="#10B981"
+                    android:textColor="#059669"
                     android:textSize="22sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -105,7 +107,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
-                android:background="#1E2433"
+                android:background="#F1F5F9"
                 android:orientation="vertical"
                 android:padding="12dp">
 
@@ -113,7 +115,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="正弦信号峰峰值 (Vpp)"
-                    android:textColor="#94A3B8"
+                    android:textColor="#64748B"
                     android:textSize="12sp" />
 
                 <TextView
@@ -123,7 +125,7 @@
                     android:layout_marginTop="6dp"
                     android:fontFamily="monospace"
                     android:text="-- V"
-                    android:textColor="#38BDF8"
+                    android:textColor="#0284C7"
                     android:textSize="22sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -141,7 +143,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                android:background="#1E2433"
+                android:background="#F1F5F9"
                 android:orientation="vertical"
                 android:padding="12dp">
 
@@ -149,7 +151,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="信号最高电压 (Vmax)"
-                    android:textColor="#94A3B8"
+                    android:textColor="#64748B"
                     android:textSize="12sp" />
 
                 <TextView
@@ -159,7 +161,7 @@
                     android:layout_marginTop="6dp"
                     android:fontFamily="monospace"
                     android:text="-- V"
-                    android:textColor="#F59E0B"
+                    android:textColor="#D97706"
                     android:textSize="22sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -169,7 +171,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
-                android:background="#1E2433"
+                android:background="#F1F5F9"
                 android:orientation="vertical"
                 android:padding="12dp">
 
@@ -177,7 +179,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="被测信号频率 (Freq)"
-                    android:textColor="#94A3B8"
+                    android:textColor="#64748B"
                     android:textSize="12sp" />
 
                 <TextView
@@ -187,27 +189,27 @@
                     android:layout_marginTop="6dp"
                     android:fontFamily="monospace"
                     android:text="-- Hz"
-                    android:textColor="#A855F7"
+                    android:textColor="#7C3AED"
                     android:textSize="20sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 模块 1：本地显示页面切换控制 (基本要求 1.c & 附加 3.b FFT) -->
+        <!-- 模块 1：页面切换 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:layout_marginBottom="8dp"
             android:text="主控本地显示页面切换"
-            android:textColor="#94A3B8"
+            android:textColor="#475569"
             android:textSize="13sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1E2433"
+            android:background="#F1F5F9"
             android:orientation="vertical"
             android:padding="10dp">
 
@@ -222,10 +224,11 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#334155"
+                    android:backgroundTint="#7DD3FC"
                     android:text="波形页"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnPageParam"
@@ -233,10 +236,11 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#334155"
+                    android:backgroundTint="#7DD3FC"
                     android:text="参数页"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnPageFft"
@@ -244,11 +248,12 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#7C3AED"
+                    android:backgroundTint="#818CF8"
                     android:text="FFT 频谱"
                     android:textColor="#FFFFFF"
                     android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    app:cornerRadius="24dp" />
             </LinearLayout>
 
             <LinearLayout
@@ -263,10 +268,11 @@
                     android:layout_height="44dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#475569"
+                    android:backgroundTint="#BAE6FD"
                     android:text="◀ 上一页面"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnPageNext"
@@ -274,14 +280,15 @@
                     android:layout_height="44dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#475569"
+                    android:backgroundTint="#BAE6FD"
                     android:text="下一页面 ▶"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 模块 2：Y轴分辨率/缩放控制 (1x, 2x, 4x, 8x) -->
+        <!-- 模块 2：Y轴缩放 -->
         <TextView
             android:id="@+id/tvYScaleLabel"
             android:layout_width="wrap_content"
@@ -289,14 +296,14 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:text="Y轴垂直缩放 / 分辨率控制 (当前: ×1)"
-            android:textColor="#94A3B8"
+            android:textColor="#475569"
             android:textSize="13sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1E2433"
+            android:background="#F1F5F9"
             android:orientation="horizontal"
             android:padding="10dp">
 
@@ -306,10 +313,11 @@
                 android:layout_height="48dp"
                 android:layout_margin="3dp"
                 android:layout_weight="1"
-                android:backgroundTint="#059669"
+                android:backgroundTint="#2563EB"
                 android:text="Y ×1"
                 android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btnY2"
@@ -317,10 +325,11 @@
                 android:layout_height="48dp"
                 android:layout_margin="3dp"
                 android:layout_weight="1"
-                android:backgroundTint="#334155"
+                android:backgroundTint="#BAE6FD"
                 android:text="Y ×2"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textColor="#0F172A"
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btnY4"
@@ -328,10 +337,11 @@
                 android:layout_height="48dp"
                 android:layout_margin="3dp"
                 android:layout_weight="1"
-                android:backgroundTint="#334155"
+                android:backgroundTint="#BAE6FD"
                 android:text="Y ×4"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textColor="#0F172A"
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
 
             <Button
                 android:id="@+id/btnY8"
@@ -339,31 +349,31 @@
                 android:layout_height="48dp"
                 android:layout_margin="3dp"
                 android:layout_weight="1"
-                android:backgroundTint="#334155"
+                android:backgroundTint="#BAE6FD"
                 android:text="Y ×8"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:textColor="#0F172A"
+                android:textStyle="bold"
+                app:cornerRadius="24dp" />
         </LinearLayout>
 
-        <!-- 模块 3：X轴分辨率缩放与左右平移控制 (发挥部分 2.a / 2.c) -->
+        <!-- 模块 3：X轴缩放与平移 -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:text="X轴时基分辨率与水平平移控制"
-            android:textColor="#94A3B8"
+            android:textColor="#475569"
             android:textSize="13sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#1E2433"
+            android:background="#F1F5F9"
             android:orientation="vertical"
             android:padding="10dp">
 
-            <!-- X轴缩放 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -375,10 +385,11 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#0284C7"
+                    android:backgroundTint="#7DD3FC"
                     android:text="X轴放大 (+)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnXZoomOut"
@@ -386,13 +397,13 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#0284C7"
+                    android:backgroundTint="#7DD3FC"
                     android:text="X轴缩小 (-)"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
             </LinearLayout>
 
-            <!-- X轴左右平移 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -405,10 +416,11 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#334155"
+                    android:backgroundTint="#BAE6FD"
                     android:text="⬅ X轴左移"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnXRight"
@@ -416,13 +428,13 @@
                     android:layout_height="46dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#334155"
+                    android:backgroundTint="#BAE6FD"
                     android:text="X轴右移 ➡"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
             </LinearLayout>
 
-            <!-- 复位与运行/暂停 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -435,10 +447,11 @@
                     android:layout_height="44dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#475569"
+                    android:backgroundTint="#E2E8F0"
                     android:text="坐标居中复位"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp" />
+                    android:textColor="#0F172A"
+                    android:textSize="13sp"
+                    app:cornerRadius="24dp" />
 
                 <Button
                     android:id="@+id/btnRunStop"
@@ -446,21 +459,22 @@
                     android:layout_height="44dp"
                     android:layout_margin="3dp"
                     android:layout_weight="1"
-                    android:backgroundTint="#D97706"
+                    android:backgroundTint="#F59E0B"
                     android:text="运行 / 暂停锁存"
                     android:textColor="#FFFFFF"
                     android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    app:cornerRadius="24dp" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 底部通信状态回显栏 -->
+        <!-- 底部通信日志回显栏 -->
         <TextView
             android:id="@+id/tvLog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
-            android:background="#0F172A"
+            android:background="#F8FAFC"
             android:fontFamily="monospace"
             android:padding="10dp"
             android:text="通信监控：等待操作..."
