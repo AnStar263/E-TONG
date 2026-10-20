@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake",
+		"D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
