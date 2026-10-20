@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp">
+
+    <Button
+        android:id="@+id/btnConnect"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="连接蓝牙单片机" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="40dp" />
+
+    <!-- 指令按键 1 -->
+    <Button
+        android:id="@+id/btnCmd1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="发送指令 A（点灯）" />
+
+    <!-- 指令按键 2 -->
+    <Button
+        android:id="@+id/btnCmd2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="发送指令 B（关灯）" />
+
+    <!-- 指令按键 3 -->
+    <Button
+        android:id="@+id/btnCmd3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="发送指令 C（复位）" />
+
+</LinearLayout>
