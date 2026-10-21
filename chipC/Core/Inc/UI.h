@@ -4,13 +4,17 @@
 #include "main.h"
 
 typedef enum {
-    PAGE_PARAM,
+    PAGE_PARAM = 0,
     PAGE_WAVE,
     PAGE_FFT
 } PAGE;
+typedef enum {
+    BLACK = 0,
+    WHITE
+} COLOR;
 
 void screen_draw_point(uint16_t x, uint16_t y);
-void screen_draw_axis();
+void screen_draw_frame(uint8_t* frame);
 void screen_clear();
 
 

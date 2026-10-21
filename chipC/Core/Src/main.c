@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include "UI.h"
+#include "fft_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define SCREEN_W   320
+#define SCREEN_H   240
 
 /* USER CODE END PD */
 
@@ -48,10 +52,17 @@ UART_HandleTypeDef huart1;
 
 // 单字节接收缓冲(上位机指令)
 uint8_t rx_data = '0'; 
+
 // 示波器y轴缩放倍数
 uint8_t y_scale = 1;
+
 //上位机当前页状态标志
 PAGE current_page = PAGE_PARAM;
+
+//各页缓存, 第一位作为是否第一次的标志位
+uint8_t frame_last[SCREEN_W + 1] = {0};
+uint8_t frame_curr[SCREEN_W + 1] = {0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
