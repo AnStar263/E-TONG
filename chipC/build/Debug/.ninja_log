@@ -1,5 +1,5 @@
 # ninja log v7
-3	357	8142098633952030	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
+33	414	8142650687039850	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
 26	558	8142096244927940	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_it.c.obj	5d92362aff4a8821
 43	584	8142096245092516	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_hal_msp.c.obj	5c3bf15ef8155da5
 59	585	8142096245258201	CMakeFiles/chipC.dir/Core/Src/sysmem.c.obj	88eb6b55ec36e7c
@@ -24,6 +24,17 @@
 479	899	8142096249457669	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c.obj	f303c7d039c30ef3
 507	910	8142096249734110	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c.obj	cf69bbf6da65e9f4
 402	1001	8142096248679597	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c.obj	d579d271b88f0d6c
-358	616	8142098637494087	chipC.elf	a7693418888a1662
+414	712	8142650690854113	chipC.elf	6bd68fb51180c34a
 558	957	8142096250251728	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart_ex.c.obj	3949c4d1056737aa
 532	1052	8142096249986171	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c.obj	ae91699b078f49ee
+8	413	8142650686798630	CMakeFiles/chipC.dir/Core/Src/UI.c.obj	8c1951987f3bad33
+2	167	8142652698658817	build.ninja	5b947ba2ee10049e
+2	167	8142652698563676	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake	5b947ba2ee10049e
+2	167	8142652698598826	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake	5b947ba2ee10049e
+1	161	8142652698658817	build.ninja	5b947ba2ee10049e
+1	161	8142652698658817	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake	5b947ba2ee10049e
+1	161	8142652698658817	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake	5b947ba2ee10049e
+26	376	8142652699243049	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_it.c.obj	5d92362aff4a8821
+2	377	8142652699007855	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
+43	377	8142652699413431	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_hal_msp.c.obj	5c3bf15ef8155da5
+377	652	8142652702760173	chipC.elf	6bd68fb51180c34a

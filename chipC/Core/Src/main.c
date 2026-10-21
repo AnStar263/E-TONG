@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
 #include "UI.h"
 /* USER CODE END Includes */
 
@@ -101,7 +102,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  // 发送常量字符串或字符数组
+
+
   HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -190,7 +196,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -249,24 +255,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         /* 1. 处理接收到的字节 rx_data */
         // 例：写入环形缓冲区或解析协议
         switch (rx_data) {
-          case 'M': current_page = PAGE_PARAM; break; // 参数页
-          case 'W': current_page = PAGE_WAVE;  break; // 波形页
-          case 'F': current_page = PAGE_FFT;   break; // FFT 频谱页 (附加题 10分)
-          case 'P': page_prev(&current_page);  break; // 上一页
-          case 'N': page_next(&current_page);  break; // 下一页
-          case '1': y_zoom_in(1);              break; // Y轴 x1
-          case '2': y_zoom_in(2);              break; // Y轴 x2
-          case '4': y_zoom_in(4);              break; // Y轴 x4
-          case '8': y_zoom_in(8);              break; // Y轴 x8
-          case '+': x_zoom_in();               break; // X轴放大
-          case '-': x_zoom_out();              break; // X轴缩小
-          case 'L': x_shift_left();            break; // X轴左移
-          case 'R': x_shift_right();           break; // X轴右移
-          case '0': reset_view();              break; // 复位缩放与平移
-          case 'S': run_stop_toggle();         break; // 暂停/继续采样
+          case 'T': HAL_UART_Transmit(&huart1, (uint8_t *)"CMD_OK\n", strlen("CMD_OK\n"), 100); break;         //收发测试
+          case 'M': current_page = PAGE_PARAM;                                                  break;         // 参数页
+          case 'W': current_page = PAGE_WAVE;                                                   break;         // 波形页
+          case 'F': current_page = PAGE_FFT;                                                    break;         // FFT 频谱页 
+          case 'P': page_prev(&current_page);                                                   break;         // 上一页
+          case 'N': page_next(&current_page);                                                   break;         // 下一页
+          case '1': y_zoom_in(1);                                                               break;         // Y轴 x1
+          case '2': y_zoom_in(2);                                                               break;         // Y轴 x2
+          case '4': y_zoom_in(4);                                                               break;         // Y轴 x4
+          case '8': y_zoom_in(8);                                                               break;         // Y轴 x8
+          case '+': x_zoom_in();                                                                break;         // X轴放大
+          case '-': x_zoom_out();                                                               break;         // X轴缩小
+          case 'L': x_shift_left();                                                             break;         // X轴左移
+          case 'R': x_shift_right();                                                            break;         // X轴右移
+          case '0': reset_view();                                                               break;         // 复位缩放与平移
+          case 'S': run_stop_toggle();                                                          break;         // 暂停/继续采样
       }
-        /* 2. 关键：HAL 的接收中断是一次性的，必须再次调用启动下一次接收 */
-        HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+      /* 2. 关键：HAL 的接收中断是一次性的，必须再次调用启动下一次接收 */
+      HAL_UART_Receive_IT(&huart1, &rx_data, 1);
     }
 }
 /* USER CODE END 4 */
