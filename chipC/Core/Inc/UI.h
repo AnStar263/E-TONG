@@ -13,8 +13,8 @@ typedef enum {
     WHITE
 } COLOR;
 
-void screen_draw_point(uint16_t x, uint16_t y);
-void screen_draw_frame(uint8_t* frame);
+void screen_draw_point(uint16_t x, uint16_t y, COLOR color);
+void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len);
 void screen_clear();
 
 

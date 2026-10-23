@@ -37,6 +37,10 @@ void page_prev(PAGE* current_page) {
 
 }
 
+void screen_clear() {
+    
+}
+
 void page_next(PAGE* current_page) {
     if (*current_page == PAGE_FFT) {
         *current_page = PAGE_PARAM;

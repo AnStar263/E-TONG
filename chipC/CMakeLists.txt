@@ -35,7 +35,10 @@ enable_language(C ASM)
 add_executable(${CMAKE_PROJECT_NAME}
     Core/Src/UI.c
     Core/Inc/ble_ssp.h
-    Core/Inc/fft_math.h)
+    Core/Inc/fft_math.h
+    Core/Inc/driver_st7789.h
+    Core/Inc/driver_st7789_font.h
+    Core/Src/driver_st7789.c)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)

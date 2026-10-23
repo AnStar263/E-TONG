@@ -7,7 +7,7 @@
 				{
 					"directoryIndex" : 1,
 					"id" : "stm32cubemx::@768a070a0fe75716b479",
-					"jsonFile" : "target-stm32cubemx-Debug-e563a176e4abaeba3610.json",
+					"jsonFile" : "target-stm32cubemx-Debug-97c483323ae19b0121ea.json",
 					"name" : "stm32cubemx",
 					"projectIndex" : 0
 				}
@@ -78,14 +78,14 @@
 				{
 					"directoryIndex" : 1,
 					"id" : "STM32_Drivers::@768a070a0fe75716b479",
-					"jsonFile" : "target-STM32_Drivers-Debug-f0e110af50950e6f6e83.json",
+					"jsonFile" : "target-STM32_Drivers-Debug-c0576a2b39ed7c20379b.json",
 					"name" : "STM32_Drivers",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "chipC::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-chipC-Debug-5cf93ac25d15093ddfcb.json",
+					"jsonFile" : "target-chipC-Debug-dbb4bdf4fd9cc9a1e33d.json",
 					"name" : "chipC",
 					"projectIndex" : 0
 				}
