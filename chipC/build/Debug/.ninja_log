@@ -1,5 +1,5 @@
 # ninja log v7
-649	2401	8144264172280387	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
+26	367	8144272161840001	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
 36	1136	8143812844542736	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_it.c.obj	5d92362aff4a8821
 51	1132	8143812844692773	CMakeFiles/chipC.dir/Core/Src/stm32h7xx_hal_msp.c.obj	5c3bf15ef8155da5
 81	640	8142665392104924	CMakeFiles/chipC.dir/Core/Src/sysmem.c.obj	88eb6b55ec36e7c
@@ -24,22 +24,16 @@
 409	1137	8143812848283176	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim.c.obj	f303c7d039c30ef3
 433	1131	8143812848513261	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_tim_ex.c.obj	cf69bbf6da65e9f4
 304	1156	8143812847222466	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_i2c.c.obj	d579d271b88f0d6c
-2401	3592	8144264189798025	chipC.elf	dfbe6bc3e235456a
+367	635	8144272165241475	chipC.elf	dfbe6bc3e235456a
 53	383	8143820633436029	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart_ex.c.obj	3949c4d1056737aa
 457	1178	8143812848763414	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_uart.c.obj	ae91699b078f49ee
 3	331	8143827395038813	CMakeFiles/chipC.dir/Core/Src/UI.c.obj	8c1951987f3bad33
-2	148	8144272161242501	build.ninja	5b947ba2ee10049e
-2	148	8144272161112327	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake	5b947ba2ee10049e
-2	148	8144272161182355	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake	5b947ba2ee10049e
+3	176	8149394951667387	build.ninja	5b947ba2ee10049e
+3	176	8149394951557202	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake	5b947ba2ee10049e
+3	176	8149394951606385	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake	5b947ba2ee10049e
 2	66	8142665388584623	CMakeFiles/clean.additional	4442cbff31e43619
 66	95	8142665389219195	clean	c97f1b1c3f9f7c94
 389	1132	8143812848073064	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi_ex.c.obj	44c2023de59efa27
 368	1172	8143812847862748	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi.c.obj	70ca53752b8bb256
 3	331	8143856972610742	CMakeFiles/chipC.dir/Core/Src/bsp_st7789.c.obj	5fb4d5335f06efc2
-3	2344	8144264165812158	CMakeFiles/chipC.dir/Core/Src/driver_st7789.c.obj	2c4b4669f114f891
-3	176	8144272161242501	build.ninja	5b947ba2ee10049e
-3	176	8144272161242501	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake_install.cmake	5b947ba2ee10049e
-3	176	8144272161242501	D:/STUDY/STM32/new/TONG/chipC/build/Debug/cmake/stm32cubemx/cmake_install.cmake	5b947ba2ee10049e
 3	366	8144272161610040	CMakeFiles/chipC.dir/Core/Src/driver_st7789.c.obj	2c4b4669f114f891
-26	367	8144272161840001	CMakeFiles/chipC.dir/Core/Src/main.c.obj	dacec9a2eeb6921e
-367	635	8144272165241475	chipC.elf	dfbe6bc3e235456a
