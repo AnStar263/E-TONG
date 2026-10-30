@@ -48,6 +48,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/driver_st7789.c
     Core/Src/fft_math.c
     Core/Src/UI.c
+    Core/Src/ble_ssp.c
     # Add user sources here
 )
 

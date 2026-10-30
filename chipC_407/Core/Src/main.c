@@ -24,6 +24,7 @@
 #include "driver_st7789.h"
 #include <stdint.h>
 #include "UI.h"
+#include "ble_ssp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,18 +119,19 @@ int main(void)
   MX_DCMI_Init();
   MX_DAC_Init();
   /* USER CODE BEGIN 2 */
+  st7789_init();
+
+  if (JDY33_SetBaudRate(&huart1, 115200)) {
+    // 配置成功，可以在屏幕或调试口输出提示
+    st7789_write_string(20, 160, "BLE Baud: 115200 OK", 19, ST7789_COLOR_GREEN, ST7789_FONT_16);
+  } else {
+      st7789_write_string(20, 160, "BLE Baud Config Fail", 20, ST7789_COLOR_RED, ST7789_FONT_16);
+  }
+
+  st7789_display_on();
   HAL_UART_Receive_IT(&huart1, &rx_data, 1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  /* 初始化屏幕 */
-    st7789_init();
-
-    /* 画红色矩形块 */
-    st7789_fill_rect(20, 20, 100, 100, ST7789_COLOR_RED);
-
-    /* 显示字符串 */
-    st7789_write_string(20, 120, "STM32H743 OK!", 13, ST7789_COLOR_WHITE, ST7789_FONT_24);
-    //st7789_clear(ST7789_COLOR_BLUE);
-    st7789_display_on();
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -541,7 +543,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
           case 'T': HAL_UART_Transmit(&huart1, (uint8_t *)"CMD_OK\n", strlen("CMD_OK\n"), 100); break;         //收发测试
           case 'M':                                                   break;         // 参数页
           case 'W':                                                    break;         // 波形页
-          case 'F':                                                     break;         // FFT 频谱页 
+          case 'F':                                                     break;         // FFT 频谱页
+          case 'C':break; 
           case 'P':                                                   break;         // 上一页
           case 'N':                                                    break;         // 下一页
           case '1': y_zoom_in(1);                                                               break;         // Y轴 x1

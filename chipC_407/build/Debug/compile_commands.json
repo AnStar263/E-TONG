@@ -55,6 +55,12 @@
 },
 {
   "directory": "D:/STUDY/STM32/new/TONG/chipC_407/build/Debug",
+  "command": "\"C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\bin\\arm-none-eabi-gcc.exe\" -DDEBUG -DSTM32F407xx -DUSE_HAL_DRIVER -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Core/Inc -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/STM32F4xx_HAL_Driver/Inc -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F4xx/Include -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/CMSIS/Include  -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -Wall -fdata-sections -ffunction-sections -O0 -g3 -std=gnu11 -o CMakeFiles\\chipC_407.dir\\Core\\Src\\ble_ssp.c.obj -c D:\\STUDY\\STM32\\new\\TONG\\chipC_407\\Core\\Src\\ble_ssp.c",
+  "file": "D:/STUDY/STM32/new/TONG/chipC_407/Core/Src/ble_ssp.c",
+  "output": "D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/CMakeFiles/chipC_407.dir/Core/Src/ble_ssp.c.obj"
+},
+{
+  "directory": "D:/STUDY/STM32/new/TONG/chipC_407/build/Debug",
   "command": "\"C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\14.2 rel1\\bin\\arm-none-eabi-gcc.exe\" -DDEBUG -DSTM32F407xx -DUSE_HAL_DRIVER -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Core/Inc -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/STM32F4xx_HAL_Driver/Inc -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32F4xx/Include -ID:/STUDY/STM32/new/TONG/chipC_407/cmake/stm32cubemx/../../Drivers/CMSIS/Include  -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -Wall -fdata-sections -ffunction-sections -O0 -g3 -std=gnu11 -o cmake\\stm32cubemx\\CMakeFiles\\STM32_Drivers.dir\\__\\__\\Core\\Src\\system_stm32f4xx.c.obj -c D:\\STUDY\\STM32\\new\\TONG\\chipC_407\\Core\\Src\\system_stm32f4xx.c",
   "file": "D:/STUDY/STM32/new/TONG/chipC_407/Core/Src/system_stm32f4xx.c",
   "output": "D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Core/Src/system_stm32f4xx.c.obj"

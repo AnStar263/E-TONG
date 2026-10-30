@@ -25,7 +25,6 @@
             android:paddingStart="12dp"
             android:paddingEnd="16dp">
 
-            <!-- 左上角三条线按钮 -->
             <ImageView
                 android:id="@+id/btnMenu"
                 android:layout_width="40dp"
@@ -35,7 +34,6 @@
                 android:padding="8dp"
                 android:src="@drawable/ic_menu" />
 
-            <!-- 当前页面标题 -->
             <TextView
                 android:id="@+id/tvTopTitle"
                 android:layout_width="0dp"
@@ -47,7 +45,6 @@
                 android:textSize="17sp"
                 android:textStyle="bold" />
 
-            <!-- 顶部快捷连接按钮 -->
             <Button
                 android:id="@+id/btnConnect"
                 android:layout_width="wrap_content"
@@ -65,7 +62,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- 页面 1：【参数】界面 (原示波器仪表盘与控制面板) -->
+            <!-- 页面 1：【参数】界面 -->
             <ScrollView
                 android:id="@+id/pageParameters"
                 android:layout_width="match_parent"
@@ -98,13 +95,13 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- 实时测量参数仪表盘 -->
+                    <!-- 实时测量参数仪表盘 (适配 F4 组 0-800kHz 指标) -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:layout_marginBottom="8dp"
-                        android:text="实时信号参数监测 (0Hz - 5MHz)"
+                        android:text="实时信号参数监测 (0Hz - 800kHz)"
                         android:textColor="#475569"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -270,9 +267,10 @@
                                 android:layout_height="44dp"
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
-                                android:backgroundTint="#7DD3FC"
+                                android:backgroundTint="#2563EB"
                                 android:text="波形页"
-                                android:textColor="#0F172A"
+                                android:textColor="#FFFFFF"
+                                android:textStyle="bold"
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
 
@@ -282,26 +280,24 @@
                                 android:layout_height="44dp"
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
-                                android:backgroundTint="#7DD3FC"
+                                android:backgroundTint="#BAE6FD"
                                 android:text="参数页"
                                 android:textColor="#0F172A"
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
 
                             <Button
-                                android:id="@+id/btnPageFft"
+                                android:id="@+id/btnPageConsole"
                                 android:layout_width="0dp"
                                 android:layout_height="44dp"
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
-                                android:backgroundTint="#818CF8"
-                                android:text="FFT 频谱"
-                                android:textColor="#FFFFFF"
+                                android:backgroundTint="#BAE6FD"
+                                android:text="控制台页"
+                                android:textColor="#0F172A"
                                 android:textSize="13sp"
-                                android:textStyle="bold"
                                 app:cornerRadius="22dp" />
                         </LinearLayout>
-
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -334,7 +330,7 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 模块 2：Y轴缩放 -->
+                    <!-- 模块 2：Y轴垂直缩放 / 分辨率控制 -->
                     <TextView
                         android:id="@+id/tvYScaleLabel"
                         android:layout_width="wrap_content"
@@ -403,13 +399,14 @@
                             app:cornerRadius="22dp" />
                     </LinearLayout>
 
-                    <!-- 模块 3：X轴缩放与平移 -->
+                    <!-- 模块 3：X轴时基分辨率与水平控制 (发挥部分 c 强化) -->
                     <TextView
+                        android:id="@+id/tvXScaleLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:layout_marginBottom="8dp"
-                        android:text="X轴时基分辨率与水平平移控制"
+                        android:text="X轴时基分辨率控制 (当前: 10 μs/div)"
                         android:textColor="#475569"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -434,7 +431,7 @@
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
                                 android:backgroundTint="#7DD3FC"
-                                android:text="X轴放大 (+)"
+                                android:text="X时基放大 (+)"
                                 android:textColor="#0F172A"
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
@@ -446,7 +443,7 @@
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
                                 android:backgroundTint="#7DD3FC"
-                                android:text="X轴缩小 (-)"
+                                android:text="X时基缩小 (-)"
                                 android:textColor="#0F172A"
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
@@ -532,7 +529,7 @@
                 </LinearLayout>
             </ScrollView>
 
-            <!-- 页面 2：【控制台】界面 (全新命令行交互与串口终端) -->
+            <!-- 页面 2：【控制台】界面 (保持不变) -->
             <LinearLayout
                 android:id="@+id/pageConsole"
                 android:layout_width="match_parent"
@@ -541,7 +538,6 @@
                 android:padding="12dp"
                 android:visibility="gone">
 
-                <!-- 终端工具栏 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -568,7 +564,6 @@
                         app:cornerRadius="18dp" />
                 </LinearLayout>
 
-                <!-- 终端日志滚动显示区 -->
                 <ScrollView
                     android:id="@+id/svConsoleLog"
                     android:layout_width="match_parent"
@@ -589,7 +584,6 @@
                         android:textSize="12sp" />
                 </ScrollView>
 
-                <!-- 快捷指令按钮栏 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -634,7 +628,6 @@
                         app:cornerRadius="12dp" />
                 </LinearLayout>
 
-                <!-- 底部输入与发送行 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -674,7 +667,7 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- 抽屉侧边栏 (Drawer: 宽度固定 280dp，露出右侧原界面并自动调暗) -->
+    <!-- 抽屉侧边栏 (Drawer) -->
     <LinearLayout
         android:id="@+id/navigationDrawer"
         android:layout_width="280dp"
@@ -686,7 +679,6 @@
         android:focusable="true"
         android:orientation="vertical">
 
-        <!-- 侧边栏头部 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="140dp"
@@ -707,19 +699,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="STM32 测量与控制中枢"
+                android:text="STM32F4xx 测量与控制中枢"
                 android:textColor="#94A3B8"
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- 导航选择列表 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingTop="12dp">
 
-            <!-- 页面项 1：参数 -->
             <TextView
                 android:id="@+id/navItemParam"
                 android:layout_width="match_parent"
@@ -732,7 +722,6 @@
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <!-- 页面项 2：控制台 -->
             <TextView
                 android:id="@+id/navItemConsole"
                 android:layout_width="match_parent"

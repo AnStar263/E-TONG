@@ -42,7 +42,7 @@
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 68,
+				"line" : 69,
 				"parent" : 0
 			},
 			{
@@ -140,7 +140,8 @@
 				4,
 				6,
 				7,
-				8
+				8,
+				9
 			]
 		},
 		{
@@ -258,7 +259,8 @@
 				4,
 				6,
 				7,
-				8
+				8,
+				9
 			]
 		},
 		{
@@ -272,7 +274,6 @@
 			"name" : "Object Libraries",
 			"sourceIndexes" : 
 			[
-				9,
 				10,
 				11,
 				12,
@@ -293,7 +294,8 @@
 				27,
 				28,
 				29,
-				30
+				30,
+				31
 			]
 		}
 	],
@@ -387,6 +389,16 @@
 			],
 			"compileGroupIndex" : 0,
 			"path" : "Core/Src/UI.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 6,
+			"backtraces" : 
+			[
+				6
+			],
+			"compileGroupIndex" : 0,
+			"path" : "Core/Src/ble_ssp.c",
 			"sourceGroupIndex" : 0
 		},
 		{
