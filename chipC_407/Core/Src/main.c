@@ -67,6 +67,8 @@ uint8_t dma_start_flag = 0;
 volatile uint8_t rx_data = '0'; 
 State current_state = Init;
 extern volatile PAGE current_page;
+extern volatile PAGE next_page_req;
+extern volatile uint8_t page_change_flag;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -138,72 +140,74 @@ int main(void)
   static uint32_t last_frame_tick = 0;
 
   while(1) {
-    switch (current_state) {
-      /* ================= 状态 1：发起采集 ================= */
-      case Init:
-      if (HAL_GetTick() - last_frame_tick >= 33) {
-        last_frame_tick = HAL_GetTick();
-    
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-        HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)adc_buf, 512);
-    
-        // 产生稳固的 VSYNC 负脉冲（延时改为 2000 次，约 12 微秒，确保 2.1MHz PIXCLK 必能采到）
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-        for(volatile int i = 0; i < 2000; i++); 
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-    
-        current_state = Measure;
+    /* 1. 安全切页检查：在主循环主线程中有序执行，绝不与 SPI 冲突 */
+    if (page_change_flag) {
+      page_change_flag = 0;
+
+      switch (next_page_req) {
+        case PAGE_CONSOLE:
+          page_console();
+          break;
+        case PAGE_WAVE:
+          // 切回波形页前，必须清空历史旧帧坐标缓存，防止对比错误
+          memset(g_last_wave, 0, sizeof(g_last_wave));
+          page_wave();
+          break;
+        case PAGE_PARAM:
+          page_param();
+          break;
       }
-      break;
-      /* ================= 状态 2：等待采集完成 ================= */
-      case Measure:
-        // DMA 搬运完毕，进入处理状态
-        if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); // 复位引脚
-          current_state = Process;
-        }
-        // 异常处理：溢出或总线错误
-        else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR) {
-          HAL_DCMI_Stop(&hdcmi);
+    }
+
+    /* 2. 状态机调度 */
+    switch (current_state) {
+      case Init:
+        if (HAL_GetTick() - last_frame_tick >= 33) {
+          last_frame_tick = HAL_GetTick();
+
           HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-          current_state = Init; // 重置并重试
+          HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)adc_buf, 512);
+
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+          for(volatile int i = 0; i < 2000; i++); 
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+
+          current_state = Measure;
         }
         break;
 
-      /* ================= 状态 3：处理数据与 30 FPS 渲染 ================= */
+      case Measure:
+        if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+          current_state = Process;
+        }
+        else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR) {
+          HAL_DCMI_Stop(&hdcmi);
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+          current_state = Init;
+        }
+        break;
+
       case Process:
-        // 1. 根据当前页面分发处理
-        if (current_page == PAGE_WAVE) {
-          // 将采集到的前 320 个 ADC 点换算为屏幕 Y 坐标
+        // 核心保护：只有当前确认是波形页才绘制波形
+        if (current_page == PAGE_WAVE && !page_change_flag) {
           for (int i = 0; i < 320; i++) {
-            // 调用坐标映射：以 2048 为中点，限制在 25~239 之间
             int32_t delta = (int32_t)adc_buf[i] - 2048;
-            int32_t y = 132 - (delta * 100 / 2048); 
+            int32_t y = 132 - (delta * 100 / 2048);
             if (y < 25)  y = 25;
             if (y > 239) y = 239;
             g_curr_wave[i] = (uint8_t)y;
           }
 
-          // 差分增量刷新波形（耗时仅 1~2ms）
           screen_draw_frame(g_last_wave, g_curr_wave, 320);
         }
-        else if (current_page == PAGE_PARAM) {
-          // 若处于参数页，此处可调用 FFT 或计算 Vpp、Vmax 并刷新参数
-          // MeasureParams_t p;
-          // ... 计算逻辑 ...
-          // param_set_data(&p);
-        }
 
-        // 2. 非阻塞节流：确保每帧间隔达到 33ms (30 FPS)，绝不使用 HAL_Delay 锁死 CPU
-        if (HAL_GetTick() - last_frame_tick >= 33) {
-          last_frame_tick = HAL_GetTick();
-          current_state = Init; // 间隔满足，发起下一轮采集
-        }
+        current_state = Init;
         break;
     }
   }
   /* USER CODE END WHILE */
-    /* USER CODE BEGIN 3 */
+  /* USER CODE BEGIN 3 */
 
   /* USER CODE END 3 */
 }

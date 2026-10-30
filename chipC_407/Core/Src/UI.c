@@ -268,26 +268,21 @@ void wave_draw_grid(void)
 /**
  * @brief 进入波形页面初始化
  */
-void page_wave()
+void page_wave(void)
 {
     current_page = PAGE_WAVE;
 
-    // 1. 绘制顶栏标题与分割线
-    st7789_fill_rect(0, 0, 319, UI_HEADER_H - 1, ST7789_COLOR_BLACK);
+    // 1. 刷新顶栏 (0~24)
+    st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "WAVE", ST7789_COLOR_GREEN, ST7789_FONT_24);
-    
-    // 顶栏右侧状态标示
-    st7789_write_string(250, 5, "RUN", ST7789_COLOR_GREEN, ST7789_FONT_16);
-
     for (int i = 0; i < 320; i++) {
-        st7789_draw_point(i, UI_HEADER_H, ST7789_COLOR_GREEN);
+        st7789_draw_point(i, 24, ST7789_COLOR_GREEN);
     }
 
-    // 2. 清空波形显示区域，并重绘示波器坐标网格
-    st7789_fill_rect(0, UI_BODY_START_Y, 319, UI_BODY_END_Y, ST7789_COLOR_BLACK);
+    // 2. 彻底抹除旧页面残留的主体区域 (25~239)，并画上示波器十字网格
+    st7789_fill_rect(0, 25, 319, 239, ST7789_COLOR_BLACK);
     wave_draw_grid();
 }
-
 /* ==================================================================== */
 /*                            参数页实现 (PAGE_PARAM)                    */
 /* ==================================================================== */
