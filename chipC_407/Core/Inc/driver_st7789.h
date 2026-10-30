@@ -72,8 +72,7 @@ uint8_t st7789_set_window(uint16_t x_start, uint16_t y_start, uint16_t x_end, ui
 uint8_t st7789_draw_point(uint16_t x, uint16_t y, uint16_t color);
 uint8_t st7789_fill_rect(uint16_t left, uint16_t top, uint16_t right, uint16_t bottom, uint16_t color);
 uint8_t st7789_draw_picture_16bits(uint16_t left, uint16_t top, uint16_t right, uint16_t bottom, const uint16_t *image);
-uint8_t st7789_write_string(uint16_t x, uint16_t y, char *str, uint16_t len, uint16_t color, st7789_font_t font);
-
+uint8_t st7789_write_string(uint16_t x, uint16_t y, const char *str, uint16_t color, st7789_font_t font);
 uint8_t st7789_display_on(void);
 uint8_t st7789_display_off(void);
 uint8_t st7789_write_cmd(uint8_t cmd);

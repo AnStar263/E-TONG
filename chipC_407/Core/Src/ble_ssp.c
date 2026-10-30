@@ -1,8 +1,12 @@
 #include "ble_ssp.h"
 #include "main.h"
+#include "UI.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+
+extern volatile uint8_t rx_data;
+
 
 /**
  * @brief  向 JDY-33 发送 AT 指令并等待匹配预期的应答
@@ -86,4 +90,45 @@ uint8_t JDY33_SetBaudRate(UART_HandleTypeDef *huart, uint32_t target_baud)
     }
 
     return 0;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        /* 1. 处理接收到的字节 rx_data */
+        // 例：写入环形缓冲区或解析协议
+        switch (rx_data) {
+          case 'T': console_print("BLE RE OK!"); break;         //收发测试
+          case 'M': page_param();                                                  break;         // 参数页
+          case 'W': page_wave();                                                   break;         // 波形页
+          case 'C': page_console();                                                    break; 
+          case 'P':                                                   break;         // 上一页
+          case 'N':                                                    break;         // 下一页
+          case '1': y_zoom_in(1);                                                               break;         // Y轴 x1
+          case '2': y_zoom_in(2);                                                               break;         // Y轴 x2
+          case '4': y_zoom_in(4);                                                               break;         // Y轴 x4
+          case '8': y_zoom_in(8);                                                               break;         // Y轴 x8
+          case '+': x_zoom_in();                                                                break;         // X轴放大
+          case '-': x_zoom_out();                                                               break;         // X轴缩小
+          case 'L': x_shift_left();                                                             break;         // X轴左移
+          case 'R': x_shift_right();                                                            break;         // X轴右移
+          case '0': reset_view();                                                               break;         // 复位缩放与平移
+          case 'S': run_stop_toggle();                                                          break;         // 暂停/继续采样
+      }
+      /* 2. 关键：HAL 的接收中断是一次性的，必须再次调用启动下一次接收 */
+      HAL_UART_Receive_IT(huart, &rx_data, 1);
+    }
+}
+
+// 2. 核心补救：增加串口错误回调，一旦蓝牙连上报 ORE 溢出，立刻自动清除恢复！
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        __HAL_UART_CLEAR_OREFLAG(huart); // 清除溢出标志位
+        huart->ErrorCode = HAL_UART_ERROR_NONE;
+        // 重新开启中断接收
+        HAL_UART_Receive_IT(huart, (uint8_t *)&rx_data, 1);
+    }
 }

@@ -31,7 +31,8 @@
 /* USER CODE BEGIN PTD */
 typedef enum {
   Init = 0,
-  Measure
+  Measure,
+  Process
 } State;
 /* USER CODE END PTD */
 
@@ -58,11 +59,14 @@ TIM_HandleTypeDef htim1;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+static uint8_t g_last_wave[320] = {0};
+static uint8_t g_curr_wave[320] = {0};
 __attribute__((aligned(4))) uint16_t adc_buf[1024];
 uint8_t dma_full_flag = 0;
 uint8_t dma_start_flag = 0;
-uint8_t rx_data = '0'; 
+volatile uint8_t rx_data = '0'; 
 State current_state = Init;
+extern volatile PAGE current_page;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -120,14 +124,9 @@ int main(void)
   MX_DAC_Init();
   /* USER CODE BEGIN 2 */
   st7789_init();
-
-  if (JDY33_SetBaudRate(&huart1, 115200)) {
-    // 配置成功，可以在屏幕或调试口输出提示
-    st7789_write_string(20, 160, "BLE Baud: 115200 OK", 19, ST7789_COLOR_GREEN, ST7789_FONT_16);
-  } else {
-      st7789_write_string(20, 160, "BLE Baud Config Fail", 20, ST7789_COLOR_RED, ST7789_FONT_16);
-  }
-
+  page_console();
+  
+  console_print("TEST#1");
   st7789_display_on();
   HAL_UART_Receive_IT(&huart1, &rx_data, 1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -136,48 +135,74 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  static uint32_t last_frame_tick = 0;
+
   while(1) {
     switch (current_state) {
+      /* ================= 状态 1：发起采集 ================= */
       case Init:
-      // 1. 先确保 VSYNC 处于空闲高电平
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-
-      // 2. 启动 DMA 监听
-      HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)adc_buf, 512);
-
-      // 3. 产生标准的负脉冲：拉低 -> 保持微秒级 -> 拉高
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET); // 下降沿：进入场同步
-      for(volatile int i = 0; i < 50; i++);                 // 延时数十纳秒，保证 PIXCLK 采到低电平
-
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);   // 上升沿：结束同步，数据帧正式开始！
-
-      current_state = Measure;
+      if (HAL_GetTick() - last_frame_tick >= 33) {
+        last_frame_tick = HAL_GetTick();
+    
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+        HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)adc_buf, 512);
+    
+        // 产生稳固的 VSYNC 负脉冲（延时改为 2000 次，约 12 微秒，确保 2.1MHz PIXCLK 必能采到）
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+        for(volatile int i = 0; i < 2000; i++); 
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+    
+        current_state = Measure;
+      }
       break;
+      /* ================= 状态 2：等待采集完成 ================= */
       case Measure:
-        // 4. 【纯 HAL 官方接口】：DMA 搬满 512 个字后，HAL 内部会自动将状态置为 READY
+        // DMA 搬运完毕，进入处理状态
         if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
-
-          // ==============================================================
-          // 【断点打在这一行！】程序必定能跑到这里！
-          // 此时 1024 个采样点已全部落盘，在监视窗口展开 adc_buf 查看波形！
-          // ==============================================================
-          
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); // 拉高复位同步信号
-          HAL_Delay(50); // 控制刷新频率，避免屏幕/总线过载
-
-          current_state = Init; // 重新发起下一轮测量
+          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); // 复位引脚
+          current_state = Process;
         }
-        // 5. 【错误捕获】：如果在 21MHz 高频下杜邦线信号过冲导致 FIFO 溢出，状态会变为 ERROR
+        // 异常处理：溢出或总线错误
         else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR) {
           HAL_DCMI_Stop(&hdcmi);
           HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-          current_state = Init;
+          current_state = Init; // 重置并重试
+        }
+        break;
+
+      /* ================= 状态 3：处理数据与 30 FPS 渲染 ================= */
+      case Process:
+        // 1. 根据当前页面分发处理
+        if (current_page == PAGE_WAVE) {
+          // 将采集到的前 320 个 ADC 点换算为屏幕 Y 坐标
+          for (int i = 0; i < 320; i++) {
+            // 调用坐标映射：以 2048 为中点，限制在 25~239 之间
+            int32_t delta = (int32_t)adc_buf[i] - 2048;
+            int32_t y = 132 - (delta * 100 / 2048); 
+            if (y < 25)  y = 25;
+            if (y > 239) y = 239;
+            g_curr_wave[i] = (uint8_t)y;
+          }
+
+          // 差分增量刷新波形（耗时仅 1~2ms）
+          screen_draw_frame(g_last_wave, g_curr_wave, 320);
+        }
+        else if (current_page == PAGE_PARAM) {
+          // 若处于参数页，此处可调用 FFT 或计算 Vpp、Vmax 并刷新参数
+          // MeasureParams_t p;
+          // ... 计算逻辑 ...
+          // param_set_data(&p);
+        }
+
+        // 2. 非阻塞节流：确保每帧间隔达到 33ms (30 FPS)，绝不使用 HAL_Delay 锁死 CPU
+        if (HAL_GetTick() - last_frame_tick >= 33) {
+          last_frame_tick = HAL_GetTick();
+          current_state = Init; // 间隔满足，发起下一轮采集
         }
         break;
     }
   }
-    /* USER CODE END WHILE */
-
+  /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
 
   /* USER CODE END 3 */
@@ -533,35 +558,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART1)
-    {
-        /* 1. 处理接收到的字节 rx_data */
-        // 例：写入环形缓冲区或解析协议
-        switch (rx_data) {
-          case 'T': HAL_UART_Transmit(&huart1, (uint8_t *)"CMD_OK\n", strlen("CMD_OK\n"), 100); break;         //收发测试
-          case 'M':                                                   break;         // 参数页
-          case 'W':                                                    break;         // 波形页
-          case 'F':                                                     break;         // FFT 频谱页
-          case 'C':break; 
-          case 'P':                                                   break;         // 上一页
-          case 'N':                                                    break;         // 下一页
-          case '1': y_zoom_in(1);                                                               break;         // Y轴 x1
-          case '2': y_zoom_in(2);                                                               break;         // Y轴 x2
-          case '4': y_zoom_in(4);                                                               break;         // Y轴 x4
-          case '8': y_zoom_in(8);                                                               break;         // Y轴 x8
-          case '+': x_zoom_in();                                                                break;         // X轴放大
-          case '-': x_zoom_out();                                                               break;         // X轴缩小
-          case 'L': x_shift_left();                                                             break;         // X轴左移
-          case 'R': x_shift_right();                                                            break;         // X轴右移
-          case '0': reset_view();                                                               break;         // 复位缩放与平移
-          case 'S': run_stop_toggle();                                                          break;         // 暂停/继续采样
-      }
-      /* 2. 关键：HAL 的接收中断是一次性的，必须再次调用启动下一次接收 */
-      HAL_UART_Receive_IT(&huart1, &rx_data, 1);
-    }
-}
+
 
 void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi) {
   dma_full_flag = 1;
