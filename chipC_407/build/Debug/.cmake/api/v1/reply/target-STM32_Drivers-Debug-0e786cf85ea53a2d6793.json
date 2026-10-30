@@ -5,7 +5,10 @@
 			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Core/Src/system_stm32f4xx.c.obj"
 		},
 		{
-			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c.obj"
+			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c.obj"
 		},
 		{
 			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c.obj"
@@ -47,6 +50,15 @@
 			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c.obj"
 		},
 		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi_ex.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c.obj"
+		},
+		{
 			"path" : "cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/./__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c.obj"
 		},
 		{
@@ -77,19 +89,19 @@
 			{
 				"command" : 0,
 				"file" : 0,
-				"line" : 72,
+				"line" : 76,
 				"parent" : 0
 			},
 			{
 				"command" : 1,
 				"file" : 0,
-				"line" : 74,
+				"line" : 78,
 				"parent" : 0
 			},
 			{
 				"command" : 2,
 				"file" : 0,
-				"line" : 73,
+				"line" : 77,
 				"parent" : 0
 			}
 		]
@@ -181,7 +193,11 @@
 				14,
 				15,
 				16,
-				17
+				17,
+				18,
+				19,
+				20,
+				21
 			]
 		}
 	],
@@ -236,7 +252,11 @@
 				14,
 				15,
 				16,
-				17
+				17,
+				18,
+				19,
+				20,
+				21
 			]
 		}
 	],
@@ -259,7 +279,17 @@
 				3
 			],
 			"compileGroupIndex" : 0,
-			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c",
+			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 3,
+			"backtraces" : 
+			[
+				3
+			],
+			"compileGroupIndex" : 0,
+			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c",
 			"sourceGroupIndex" : 0
 		},
 		{
@@ -390,6 +420,36 @@
 			],
 			"compileGroupIndex" : 0,
 			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 3,
+			"backtraces" : 
+			[
+				3
+			],
+			"compileGroupIndex" : 0,
+			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 3,
+			"backtraces" : 
+			[
+				3
+			],
+			"compileGroupIndex" : 0,
+			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dcmi_ex.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 3,
+			"backtraces" : 
+			[
+				3
+			],
+			"compileGroupIndex" : 0,
+			"path" : "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c",
 			"sourceGroupIndex" : 0
 		},
 		{
