@@ -49,6 +49,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/fft_math.c
     Core/Src/UI.c
     Core/Src/ble_ssp.c
+    Core/Inc/vga_ad8367.h
+    Core/Src/vga_ad8367.c
     # Add user sources here
 )
 
