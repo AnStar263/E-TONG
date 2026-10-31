@@ -24,9 +24,9 @@
 606	952	8149724629674946	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c.obj	d03b5f5d76964c7f
 553	995	8149724629138336	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c.obj	fec8c2c1bf338f7a
 280	533	8150487298705523	chipC_407.elf	5f1ede2e7141a62c
-2	162	8151304049364682	build.ninja	96b8b8941dce4afd
-2	162	8151304049254713	D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/cmake_install.cmake	96b8b8941dce4afd
-2	162	8151304049304712	D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/cmake/stm32cubemx/cmake_install.cmake	96b8b8941dce4afd
+2	162	8151398204764480	build.ninja	96b8b8941dce4afd
+2	162	8151398204674530	D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/cmake_install.cmake	96b8b8941dce4afd
+2	162	8151398204704554	D:/STUDY/STM32/new/TONG/chipC_407/build/Debug/cmake/stm32cubemx/cmake_install.cmake	96b8b8941dce4afd
 24	181	8149032042623164	CMakeFiles/chipC_407.dir/Core/Src/fft_math.c.obj	9cbd4c5c0fa09c30
 4	293	8150421845317885	CMakeFiles/chipC_407.dir/Core/Src/driver_st7789.c.obj	d3329e27593873f2
 24	315	8150481957390604	CMakeFiles/chipC_407.dir/Core/Src/UI.c.obj	f71ff97175c5c75
@@ -35,3 +35,7 @@
 120	633	8149724624812760	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c.obj	705cc66c84877b08
 140	633	8149724625018850	cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir/__/__/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c.obj	da157141e9318186
 3	280	8150487295937576	CMakeFiles/chipC_407.dir/Core/Src/ble_ssp.c.obj	9c49f42c5a8ecdea
+37	731	8151407323238060	CMakeFiles/chipC_407.dir/Core/Src/vga_ad8367.c.obj	dca29bf5d118b2dd
+3	268	8151407527538227	CMakeFiles/chipC_407.dir/Core/Src/main.c.obj	e6890d123060dd9d
+3	265	8151408511595722	CMakeFiles/chipC_407.dir/Core/Src/UI.c.obj	f71ff97175c5c75
+266	1439	8151408514228200	chipC_407.elf	39b921d57f606c04

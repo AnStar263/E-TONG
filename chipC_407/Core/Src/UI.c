@@ -82,15 +82,55 @@ static inline uint16_t get_grid_color(uint16_t x, uint16_t y)
 }
 
 /**
- * @brief 差分擦除：仅清除上一帧绘制的点，并自动还原被覆盖的网格像素
+ * @brief 绘制垂直实线段（用于连接相邻两列跳变过大的波形点）
+ */
+static void draw_vertical_line(uint16_t x, uint8_t y1, uint8_t y2, uint16_t color)
+{
+    uint8_t start = (y1 < y2) ? y1 : y2;
+    uint8_t end   = (y1 < y2) ? y2 : y1;
+    for (uint8_t y = start; y <= end; y++) {
+        screen_draw_point(x, y, color);
+    }
+}
+
+/**
+ * @brief 垂直线段差分清除（清除上一帧连线并恢复被覆盖的网格像素）
+ */
+static void clear_vertical_line(uint16_t x, uint8_t y1, uint8_t y2)
+{
+    uint8_t start = (y1 < y2) ? y1 : y2;
+    uint8_t end   = (y1 < y2) ? y2 : y1;
+    for (uint8_t y = start; y <= end; y++) {
+        screen_draw_point(x, y, get_grid_color(x, y));
+    }
+}
+
+/**
+ * @brief 差分擦除：仅清除上一帧绘制的点和跳变沿连线，并自动还原网格
  */
 void screen_clear_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 {
-    for (uint16_t i = 0; i < len; i++) {
-        // 坐标发生变化时才做清除，坐标相同时直接复用，减少 SPI 传输
-        if (last_frame[i] != draw_frame[i]) {
-            uint16_t bg = get_grid_color(i, last_frame[i]);
-            screen_draw_point(i, last_frame[i], bg);
+    // 未初始化的旧帧缓存（如切页刚清零时）不进行擦除，防止破坏顶栏
+    if (last_frame[0] < WAVE_AREA_TOP) return;
+
+    // 1. 擦除第 0 列起始点
+    if (last_frame[0] != draw_frame[0]) {
+        screen_draw_point(0, last_frame[0], get_grid_color(0, last_frame[0]));
+    }
+
+    // 2. 擦除后续各列
+    for (uint16_t i = 1; i < len; i++) {
+        int16_t last_diff = (int16_t)last_frame[i] - (int16_t)last_frame[i - 1];
+
+        // 若上一帧在此处绘制了垂直跳变沿，整条线段擦除并还原背景
+        if (last_diff > 1 || last_diff < -1) {
+            clear_vertical_line(i, last_frame[i - 1], last_frame[i]);
+        } 
+        else {
+            // 普通水平/缓变点：仅当坐标改变时擦除，节省 SPI 开销
+            if (last_frame[i] != draw_frame[i]) {
+                screen_draw_point(i, last_frame[i], get_grid_color(i, last_frame[i]));
+            }
         }
     }
 }
@@ -106,28 +146,28 @@ void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
     // 页面安全锁：若当前不在波形页，立即退出，防止跨页破坏画面
     if (current_page != PAGE_WAVE) return;
 
-    // 1. 擦除上一帧波形
+    // 1. 擦除上一帧波形与跳变线
     screen_clear_frame(last_frame, draw_frame, len);
 
-    // 2. 绘制当前帧的新波形（使用高亮黄色）并更新旧坐标缓存
-    for (uint16_t i = 0; i < len; i++) {
+    // 2. 绘制第 0 列起始点
+    screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
+    last_frame[0] = draw_frame[0];
+
+    // 3. 绘制当前帧的新波形（相邻点差值 > 1 像素时自动补齐垂直线）
+    for (uint16_t i = 1; i < len; i++) {
+        int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
+
+        if (diff > 1 || diff < -1) {
+            // 沿陡峭边缘垂直拉线，形成完整方波
+            draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
+        } else {
+            screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+        }
+
+        // 缓存当前点作为下一帧擦除的依据
         last_frame[i] = draw_frame[i];
-        screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
     }
 }
-
-/**
- * @brief 绘制垂直实线段（用于连接相邻两列跳变过大的波形点）
- */
-static void draw_vertical_line(uint16_t x, uint8_t y1, uint8_t y2, uint16_t color)
-{
-    uint8_t start = (y1 < y2) ? y1 : y2;
-    uint8_t end   = (y1 < y2) ? y2 : y1;
-    for (uint8_t y = start; y <= end; y++) {
-        screen_draw_point(x, y, color);
-    }
-}
-
 /**
  * @brief 刷新整个控制台内容区域
  */
