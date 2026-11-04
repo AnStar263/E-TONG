@@ -43,7 +43,7 @@ void param_refresh_all(void);
 
 void page_prev(PAGE* current_page);
 void page_next(PAGE* current_page);
-void y_zoom_in(uint8_t y_scale);
+void set_y_scale(uint8_t y_scale);
 void x_zoom_in();
 void x_zoom_out();
 void x_shift_left();

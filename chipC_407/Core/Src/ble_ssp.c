@@ -112,6 +112,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 next_page_req = PAGE_PARAM;
                 page_change_flag = 1;
                 break;
+            case '1':
+                set_y_scale(1);
+                break;
+            case '2':
+                set_y_scale(2);
+                break;
+            case '4':
+                set_y_scale(4);
+                break;
+            case '8':
+                set_y_scale(8);
+                break;
             // 其他指令 (如缩放等)...
         }
 

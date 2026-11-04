@@ -25,8 +25,7 @@
 #define WAVE_AREA_TOP       25
 #define WAVE_AREA_BOTTOM    239
 #define WAVE_CENTER_Y       132   // 中心零点位置
-
-static float g_v_scale = 1.0f;    // 垂直增益
+volatile uint16_t g_v_scale = 1;    // 垂直增益
 static int16_t g_y_offset = 0;    // 垂直偏移量
 
 /* --- 参数页显示缓存 --- */
@@ -292,7 +291,7 @@ void wave_draw_grid(void)
     }
 
     // 中心纵轴 (X = 160)
-    for (uint16_t y = UI_BODY_START_Y; y <= UI_BODY_END_Y; y += 4) {
+    for (uint16_t y = UI_BODY_START_Y; y <= UI_BODY_END_Y; y += 6) {
         st7789_draw_point(160, y, ST7789_COLOR_WHITE);
     }
 
@@ -315,6 +314,10 @@ void page_wave(void)
     // 1. 刷新顶栏 (0~24)
     st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "WAVE", ST7789_COLOR_GREEN, ST7789_FONT_24);
+    char strtemp[4] = {'\0'};
+    snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
+    st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
+
     for (int i = 0; i < 320; i++) {
         st7789_draw_point(i, 24, ST7789_COLOR_GREEN);
     }
@@ -424,9 +427,14 @@ void page_next(PAGE* current_page) {
     
 }
 
-void y_zoom_in(uint8_t y_scale) {
-    
-
+void set_y_scale(uint8_t y_scale) {
+    g_v_scale = y_scale;
+    if (current_page == PAGE_WAVE) {
+        char strtemp[4] = {'\0'};
+        snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
+        st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
+        st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
+    }
 }
 
 void x_zoom_in() {

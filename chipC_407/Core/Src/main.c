@@ -64,11 +64,13 @@ static uint8_t g_curr_wave[320] = {0};
 __attribute__((aligned(4))) uint16_t adc_buf[1024];
 uint8_t dma_full_flag = 0;
 uint8_t dma_start_flag = 0;
-volatile uint8_t rx_data = '0'; 
+volatile uint8_t rx_data = '0';
+volatile uint16_t y_scale = 1; 
 State current_state = Init;
 extern volatile PAGE current_page;
 extern volatile PAGE next_page_req;
 extern volatile uint8_t page_change_flag;
+extern volatile uint16_t g_v_scale;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -189,13 +191,12 @@ int main(void)
         break;
 
       case Process:
-        // 核心保护：只有当前确认是波形页才绘制波形
+        //只有当前确认是波形页才绘制波形
         if (current_page == PAGE_WAVE && !page_change_flag) {
           for (int i = 0; i < 320; i++) {
             int32_t delta = (int32_t)adc_buf[i] - 2048;
-            int32_t y = 132 - (delta * 100 / 2048);
-            if (y < 25)  y = 25;
-            if (y > 239) y = 239;
+            int32_t y = 132 - ((delta * 100 / 2048)) * g_v_scale;
+            
             g_curr_wave[i] = (uint8_t)y;
           }
 
