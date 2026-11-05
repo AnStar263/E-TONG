@@ -21,6 +21,8 @@ void bit_reverse(Complex *x, int N);
 void fft(Complex *x, int N);
 void compute_raw_magnitude(const Complex *x, float *mag, int N);
 RifeResult rife_estimate(const float *mag, int N, float fs);
+uint16_t cal_vpp(const uint16_t* adc_buf);
+void do_fft_process(uint16_t* adc_buf);
 
 
 

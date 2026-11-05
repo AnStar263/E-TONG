@@ -29,7 +29,7 @@ volatile uint16_t g_v_scale = 1;    // 垂直增益
 static int16_t g_y_offset = 0;    // 垂直偏移量
 
 /* --- 参数页显示缓存 --- */
-static MeasureParams_t current_params = {0};
+volatile MeasureParams_t current_params = {0};
 
 volatile PAGE current_page = PAGE_CONSOLE;
 
@@ -351,6 +351,7 @@ void param_refresh_all(void)
     st7789_write_string(220, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
 
     // 第二行：峰峰值 (Vpp) 与 有效值 (Vrms)
+    
     st7789_write_string(10, 80, "Vpp :", ST7789_COLOR_GREEN, ST7789_FONT_16);
     snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vpp);
     st7789_write_string(60, 80, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
@@ -409,7 +410,9 @@ void page_param()
     param_refresh_all();
 }
 
-
+void screen_show_param (float freq, float v_avg, float v_max, float v_vpp) {
+    
+}
 
 
 

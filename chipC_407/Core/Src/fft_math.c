@@ -1,9 +1,14 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include "fft_math.h"
 
-
+#define FFT_N       1024
+#define FS_INIT    2100000.0f
+static Complex fft_in[FFT_N];
+static float   fft_mag[FFT_N / 2]; 
+volatile RifeResult res;
+volatile uint16_t param_m_flag = 0;
 
 // 复数乘法
 static inline Complex complex_mul(Complex a, Complex b) {
@@ -11,7 +16,7 @@ static inline Complex complex_mul(Complex a, Complex b) {
     c.real = a.real * b.real - a.imag * b.imag;
     c.imag = a.real * b.imag + a.imag * b.real;
     return c;
-}
+} 
 
 // 1. 雷德算法进行倒位序重排
 void bit_reverse(Complex *x, int N) {
@@ -111,4 +116,50 @@ RifeResult rife_estimate(const float *mag, int N, float fs) {
     res.amp = (2.0f * max_val / (float)N) * amp_correct;
 
     return res;
+}
+
+// 在状态机 Process 状态下调用：
+void do_fft_process(uint16_t* adc_buf) {
+    // 1. 填充复数数组（减去中位值 2048 消除直流，虚部赋 0）
+    for (int i = 0; i < FFT_N; i++) {
+        fft_in[i].real = (float)adc_buf[i] - 2048.0f;
+        fft_in[i].imag = 0.0f;
+    }
+
+    // 2. 原位执行 FFT
+    fft(fft_in, FFT_N);
+
+    // 3. 计算前 512 点的幅度谱
+    compute_raw_magnitude(fft_in, fft_mag, FFT_N);
+
+    // 4. Rife 谱线插值估算
+    res = rife_estimate(fft_mag, FFT_N, FS_INIT);
+    param_m_flag = 1;
+}
+
+uint16_t cal_vpp(const uint16_t* adc_buf) {
+    uint16_t v_max = 0;
+    uint16_t v_min = 4095;
+    uint16_t win[5];
+
+    for (int i = 0; i <= FFT_N - 5; i++) {
+        for (int k = 0; k < 5; k++) {
+            win[k] = adc_buf[i + k];
+        }
+
+        for (int m = 0; m < 4; m++) {
+            for (int n = 0; n < 4 - m; n++) {
+                if (win[n] > win[n + 1]) {
+                    uint16_t t = win[n];
+                    win[n] = win[n + 1];
+                    win[n + 1] = t;
+                }
+            }
+        }
+        
+        uint16_t mid = win[2];
+        v_max = v_max > mid ? v_max : mid;
+        v_min = v_min < mid ? v_min : mid;
+    }
+    return v_max - v_min;
 }

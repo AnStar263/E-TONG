@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include "UI.h"
 #include "ble_ssp.h"
+#include "fft_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,6 +74,8 @@ extern volatile PAGE next_page_req;
 extern volatile uint8_t page_change_flag;
 extern volatile uint8_t wave_div_change_flag;
 extern volatile uint16_t g_v_scale;
+extern volatile RifeResult res;
+extern MeasureParams_t current_params;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -157,7 +160,7 @@ int main(void)
           memset(g_last_wave, 0, sizeof(g_last_wave));
           page_wave();
           break;
-        case PAGE_PARAM:
+        case PAGE_PARAM:        
           page_param();
           break;
       } 
@@ -212,6 +215,11 @@ int main(void)
           screen_draw_frame(g_last_wave, g_curr_wave, 320);
         }
 
+        current_params.vpp = (cal_vpp(adc_buf) / 4096.0f) * 10.0f;
+        if (current_page == PAGE_PARAM && !page_change_flag) {
+          param_refresh_all();
+          
+        }
         current_state = Init;
         break;
     }
