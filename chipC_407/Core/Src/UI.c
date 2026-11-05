@@ -429,12 +429,6 @@ void page_next(PAGE* current_page) {
 
 void set_y_scale(uint8_t y_scale) {
     g_v_scale = y_scale;
-    if (current_page == PAGE_WAVE) {
-        char strtemp[4] = {'\0'};
-        snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
-        st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
-        st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
-    }
 }
 
 void x_zoom_in() {

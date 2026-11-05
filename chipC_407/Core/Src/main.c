@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "driver_st7789.h"
 #include <stdint.h>
+#include <stdio.h>
 #include "UI.h"
 #include "ble_ssp.h"
 /* USER CODE END Includes */
@@ -70,6 +71,7 @@ State current_state = Init;
 extern volatile PAGE current_page;
 extern volatile PAGE next_page_req;
 extern volatile uint8_t page_change_flag;
+extern volatile uint8_t wave_div_change_flag;
 extern volatile uint16_t g_v_scale;
 /* USER CODE END PV */
 
@@ -158,7 +160,14 @@ int main(void)
         case PAGE_PARAM:
           page_param();
           break;
-      }
+      } 
+    }
+    if (wave_div_change_flag && current_page == PAGE_WAVE) {
+        char strtemp[4] = {'\0'};
+        snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
+        st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
+        st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
+        wave_div_change_flag = 0;
     }
 
     /* 2. 状态机调度 */

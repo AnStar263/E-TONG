@@ -9,6 +9,7 @@ extern volatile uint8_t rx_data;
 // 声明外部页面请求标记
 volatile PAGE next_page_req = PAGE_CONSOLE;
 volatile uint8_t page_change_flag = 0; // 切页请求标志
+volatile uint8_t wave_div_change_flag = 0;
 
 /**
  * @brief  向 JDY-33 发送 AT 指令并等待匹配预期的应答
@@ -114,15 +115,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 break;
             case '1':
                 set_y_scale(1);
+                wave_div_change_flag = 1;
                 break;
             case '2':
                 set_y_scale(2);
+                wave_div_change_flag = 1;
                 break;
             case '4':
                 set_y_scale(4);
+                wave_div_change_flag = 1;
                 break;
             case '8':
                 set_y_scale(8);
+                wave_div_change_flag = 1;
                 break;
             // 其他指令 (如缩放等)...
         }
