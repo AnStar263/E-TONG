@@ -28,14 +28,12 @@ void page_wave();
 void wave_draw_grid();
 
 
-/* 参数测量数据结构体 */
 typedef struct {
-    float freq;         // 频率 (Hz)
-    float vpp;          // 峰峰值 (V)
-    float vmax;         // 最大电压 (V)
-    float vmin;         // 最小电压 (V)
-    float vrms;         // 有效值 (V)
-    float duty;         // 占空比 (%)
+    float freq;     // 频率 (Hz)
+    float vavg;     // 平均电压 (V)
+    float vpp;      // 峰峰值 (V)
+    float vmax;     // 最大电压 (V)
+    float vmin;     // 最小电压 (V)
 } MeasureParams_t;
 void page_param();
 void param_set_data(const MeasureParams_t *params);

@@ -3,6 +3,7 @@
 #include "driver_st7789.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <math.h>
 
 /* --- 控制台参数配置 --- */
 #define CONSOLE_FONT          ST7789_FONT_16
@@ -36,6 +37,15 @@ volatile PAGE current_page = PAGE_CONSOLE;
 // 文本行缓冲区
 static char console_buffer[CONSOLE_MAX_LINES][CONSOLE_MAX_COLS + 1];
 static uint8_t current_line = 0;
+
+// 缓存初始化
+static MeasureParams_t last_params = {
+    .freq = -1.0f,
+    .vavg = -999.0f,
+    .vpp  = -1.0f,
+    .vmax = -999.0f,
+    .vmin = -999.0f
+};
 
 /**
  * @brief 将原始 ADC 采样值 (0~4095) 转换为屏幕 Y 坐标 (25~239)
@@ -333,47 +343,57 @@ void page_wave(void)
 /**
  * @brief 绘制/刷新所有测量参数项
  */
+/**
+ * @brief 增量差分刷新参数页（仅刷新变动项）
+ */
 void param_refresh_all(void)
 {
     char val_str[32];
 
-    // 第一行：频率 (Freq) 与 占空比 (Duty)
-    st7789_write_string(10, 40, "Freq:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    if (current_params.freq >= 1000.0f) {
-        snprintf(val_str, sizeof(val_str), "%6.2f kHz", current_params.freq / 1000.0f);
-    } else {
-        snprintf(val_str, sizeof(val_str), "%6.1f Hz ", current_params.freq);
+    // 1. 频率 (Freq)
+    if (fabsf(current_params.freq - last_params.freq) >= 0.2f) {
+        last_params.freq = current_params.freq;
+        st7789_fill_rect(60, 40, 150, 56, ST7789_COLOR_BLACK);
+        if (current_params.freq >= 1000.0f) {
+            snprintf(val_str, sizeof(val_str), "%6.2f kHz", current_params.freq / 1000.0f);
+        } else {
+            snprintf(val_str, sizeof(val_str), "%6.1f Hz ", current_params.freq);
+        }
+        st7789_write_string(60, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
-    st7789_write_string(60, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
 
-    st7789_write_string(170, 40, "Duty:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    snprintf(val_str, sizeof(val_str), "%5.1f %%", current_params.duty);
-    st7789_write_string(220, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    // 2. 平均电压 (Vavg) - 替换原 Duty 区域
+    if (fabsf(current_params.vavg - last_params.vavg) >= 0.01f) {
+        last_params.vavg = current_params.vavg;
+        st7789_fill_rect(220, 40, 300, 56, ST7789_COLOR_BLACK);
+        snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vavg);
+        st7789_write_string(220, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    }
 
-    // 第二行：峰峰值 (Vpp) 与 有效值 (Vrms)
-    
-    st7789_write_string(10, 80, "Vpp :", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vpp);
-    st7789_write_string(60, 80, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    // 3. 峰峰值 (Vpp)
+    if (fabsf(current_params.vpp - last_params.vpp) >= 0.01f) {
+        last_params.vpp = current_params.vpp;
+        st7789_fill_rect(60, 80, 150, 96, ST7789_COLOR_BLACK);
+        snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vpp);
+        st7789_write_string(60, 80, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    }
 
-    st7789_write_string(170, 80, "Vrms:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vrms);
-    st7789_write_string(220, 80, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    // 4. 最大电压 (Vmax)
+    if (fabsf(current_params.vmax - last_params.vmax) >= 0.01f) {
+        last_params.vmax = current_params.vmax;
+        st7789_fill_rect(60, 120, 150, 136, ST7789_COLOR_BLACK);
+        snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vmax);
+        st7789_write_string(60, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    }
 
-    // 第三行：最大电压 (Vmax) 与 最小电压 (Vmin)
-    st7789_write_string(10, 120, "Vmax:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vmax);
-    st7789_write_string(60, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
-
-    st7789_write_string(170, 120, "Vmin:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vmin);
-    st7789_write_string(220, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
-
-    // 第四行：系统采集状态装饰栏
-    st7789_write_string(10, 170, "CH1 Coupling: DC", ST7789_COLOR_WHITE, ST7789_FONT_16);
-    st7789_write_string(10, 195, "ADC Sampling: DMA Circular", ST7789_COLOR_WHITE, ST7789_FONT_16);
+    // 5. 最小电压 (Vmin)
+    if (fabsf(current_params.vmin - last_params.vmin) >= 0.01f) {
+        last_params.vmin = current_params.vmin;
+        st7789_fill_rect(220, 120, 300, 136, ST7789_COLOR_BLACK);
+        snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vmin);
+        st7789_write_string(220, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+    }
 }
-
 /**
  * @brief 更新测量参数数据（带页面状态保护）
  */
@@ -390,30 +410,33 @@ void param_set_data(const MeasureParams_t *params)
     }
 }
 
-/**
- * @brief 进入参数页面初始化
- */
-void page_param()
+void page_param(void)
 {
     current_page = PAGE_PARAM;
 
-    // 1. 绘制顶栏标题与分割线
     st7789_fill_rect(0, 0, 319, UI_HEADER_H - 1, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "PARAM", ST7789_COLOR_GREEN, ST7789_FONT_24);
-
-    for (int i = 0; i < 320; i++) {
-        st7789_draw_point(i, UI_HEADER_H, ST7789_COLOR_GREEN);
-    }
-
-    // 2. 清空主体区域并绘制当前的测量参数
+    for (int i = 0; i < 320; i++) st7789_draw_point(i, UI_HEADER_H, ST7789_COLOR_GREEN);
     st7789_fill_rect(0, UI_BODY_START_Y, 319, UI_BODY_END_Y, ST7789_COLOR_BLACK);
+
+    // 仅绘制 5 个固定项的标签
+    st7789_write_string(10, 40, "Freq:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(170, 40, "Vavg:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(10, 80, "Vpp :", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(10, 120, "Vmax:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(170, 120, "Vmin:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+
+    st7789_write_string(10, 170, "CH1 Coupling: DC", ST7789_COLOR_WHITE, ST7789_FONT_16);
+    st7789_write_string(10, 195, "ADC Sampling: DMA Circular", ST7789_COLOR_WHITE, ST7789_FONT_16);
+
+    last_params.freq = -1.0f;
+    last_params.vavg = -999.0f;
+    last_params.vpp  = -1.0f;
+    last_params.vmax = -999.0f;
+    last_params.vmin = -999.0f;
+
     param_refresh_all();
 }
-
-void screen_show_param (float freq, float v_avg, float v_max, float v_vpp) {
-    
-}
-
 
 
 

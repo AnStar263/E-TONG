@@ -1,165 +1,117 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <math.h>
 #include "fft_math.h"
+#include "UI.h"
+#include <math.h>
 
-#define FFT_N       1024
-#define FS_INIT    2100000.0f
-static Complex fft_in[FFT_N];
-static float   fft_mag[FFT_N / 2]; 
-volatile RifeResult res;
-volatile uint16_t param_m_flag = 0;
+#define MIN_LAG     2       // 对应最高理论测频 fs / 2 (约 1MHz)
+#define MAX_LAG     512     // 对应最低测频约 4.1kHz (覆盖 1024 点窗口)
 
-// 复数乘法
-static inline Complex complex_mul(Complex a, Complex b) {
-    Complex c;
-    c.real = a.real * b.real - a.imag * b.imag;
-    c.imag = a.real * b.imag + a.imag * b.real;
-    return c;
-} 
+extern volatile MeasureParams_t current_params;
 
-// 1. 雷德算法进行倒位序重排
-void bit_reverse(Complex *x, int N) {
-    int j = 0;
-    for (int i = 0; i < N - 1; i++) {
-        if (i < j) {
-            Complex temp = x[i];
-            x[i] = x[j];
-            x[j] = temp;
-        }
-        int k = N >> 1;
-        while (k <= j) {
-            j -= k;
-            k >>= 1;
-        }
-        j += k;
+/**
+ * @brief 信号参数一站式测量：频率(ACF)、Vavg、Vmax、Vmin、Vpp
+ */
+void measure_signal(const uint16_t *adc_buf, uint16_t len, float fs)
+{
+    // ================= 1. 平均电压 (Vavg) =================
+    uint32_t sum = 0;
+    for (uint16_t i = 0; i < len; i++) {
+        sum += adc_buf[i];
     }
-}
+    float avg_raw = (float)sum / (float)len;
+    current_params.vavg = (avg_raw / 4096.0f) * 10.0f;
 
-// 2. 基-2 时间抽取 (DIT) FFT
-void fft(Complex *x, int N) {
-    bit_reverse(x, N);
-
-    for (int step = 2; step <= N; step <<= 1) {
-        int half_step = step >> 1;
-        float angle = -2.0f * PI / (float)step;
-        Complex wn = {cosf(angle), sinf(angle)};
-
-        for (int i = 0; i < N; i += step) {
-            Complex w = {1.0f, 0.0f};
-            for (int j = 0; j < half_step; j++) {
-                Complex u = x[i + j];
-                Complex v = complex_mul(w, x[i + j + half_step]);
-
-                x[i + j].real = u.real + v.real;
-                x[i + j].imag = u.imag + v.imag;
-
-                x[i + j + half_step].real = u.real - v.real;
-                x[i + j + half_step].imag = u.imag - v.imag;
-
-                w = complex_mul(w, wn);
-            }
-        }
-    }
-}
-
-// 3. 计算单边未归一化模长谱（只算到 N/2）
-void compute_raw_magnitude(const Complex *x, float *mag, int N) {
-    for (int i = 0; i < N / 2; i++) {
-        mag[i] = sqrtf(x[i].real * x[i].real + x[i].imag * x[i].imag);
-    }
-}
-
-// 4. Rife 谱线插值算法核心函数
-RifeResult rife_estimate(const float *mag, int N, float fs) {
-    RifeResult res = {0};
-    float df = fs / (float)N; // 频率分辨率
-
-    // 寻找主瓣峰值谱线 k0（跳过 DC 直流分量 i=0，防止直流偏置干扰）
-    int k0 = 1;
-    float max_val = mag[1];
-    for (int i = 2; i < (N / 2) - 1; i++) {
-        if (mag[i] > max_val) {
-            max_val = mag[i];
-            k0 = i;
-        }
-    }
-    res.peak_bin = k0;
-
-    // 比较左右相邻谱线确定偏向
-    int r0 = 0;
-    float neighbor_val = 0.0f;
-    if (mag[k0 + 1] >= mag[k0 - 1]) {
-        r0 = 1;
-        neighbor_val = mag[k0 + 1];
-    } else {
-        r0 = -1;
-        neighbor_val = mag[k0 - 1];
-    }
-
-    // 计算比值 r 与频偏 delta
-    float r = neighbor_val / max_val;
-    float delta = (float)r0 * (r / (1.0f + r));
-    res.delta = delta;
-
-    // 校正频率计算
-    res.freq = ((float)k0 + delta) * df;
-
-    // 幅度修正系数: pi * delta / sin(pi * delta)
-    float amp_correct = 1.0f;
-    if (fabsf(delta) > 1e-5f) {
-        float pi_delta = PI * delta;
-        amp_correct = pi_delta / sinf(pi_delta);
-    }
-
-    // 实际单边峰值幅值 (交流分量乘 2 / N)
-    res.amp = (2.0f * max_val / (float)N) * amp_correct;
-
-    return res;
-}
-
-// 在状态机 Process 状态下调用：
-void do_fft_process(uint16_t* adc_buf) {
-    // 1. 填充复数数组（减去中位值 2048 消除直流，虚部赋 0）
-    for (int i = 0; i < FFT_N; i++) {
-        fft_in[i].real = (float)adc_buf[i] - 2048.0f;
-        fft_in[i].imag = 0.0f;
-    }
-
-    // 2. 原位执行 FFT
-    fft(fft_in, FFT_N);
-
-    // 3. 计算前 512 点的幅度谱
-    compute_raw_magnitude(fft_in, fft_mag, FFT_N);
-
-    // 4. Rife 谱线插值估算
-    res = rife_estimate(fft_mag, FFT_N, FS_INIT);
-    param_m_flag = 1;
-}
-
-uint16_t cal_vpp(const uint16_t* adc_buf) {
-    uint16_t v_max = 0;
-    uint16_t v_min = 4095;
+    // ================= 2. 5点中值滤波提取 Vmax, Vmin, Vpp =================
+    uint16_t v_max_raw = 0;
+    uint16_t v_min_raw = 4095;
     uint16_t win[5];
 
-    for (int i = 0; i <= FFT_N - 5; i++) {
-        for (int k = 0; k < 5; k++) {
-            win[k] = adc_buf[i + k];
-        }
+    for (int i = 0; i <= len - 5; i++) {
+        for (int k = 0; k < 5; k++) win[k] = adc_buf[i + k];
 
+        // 5 点快速冒泡排序
         for (int m = 0; m < 4; m++) {
             for (int n = 0; n < 4 - m; n++) {
                 if (win[n] > win[n + 1]) {
-                    uint16_t t = win[n];
-                    win[n] = win[n + 1];
-                    win[n + 1] = t;
+                    uint16_t t = win[n]; win[n] = win[n + 1]; win[n + 1] = t;
                 }
             }
         }
-        
         uint16_t mid = win[2];
-        v_max = v_max > mid ? v_max : mid;
-        v_min = v_min < mid ? v_min : mid;
+        if (mid > v_max_raw) v_max_raw = mid;
+        if (mid < v_min_raw) v_min_raw = mid;
     }
-    return v_max - v_min;
+
+    // 1. 平均电压：以 2048 为零点，范围 -5V ~ +5V
+    current_params.vavg = ((avg_raw - 2048.0f) / 2048.0f) * 5.0f;
+
+    // 2. 最大与最小电压
+    current_params.vmax = (((float)v_max_raw - 2048.0f) / 2048.0f) * 5.0f;
+    current_params.vmin = (((float)v_min_raw - 2048.0f) / 2048.0f) * 5.0f;
+
+    // 3. 峰峰值（差值自然抵消直流偏置）
+    current_params.vpp  = current_params.vmax - current_params.vmin;
+
+    // ================= 3. 噪声门限检查 (纯直流/无信号判定) =================
+    if ((v_max_raw - v_min_raw) < 20) { // 波动低于约 50mV 视为纯直流 0Hz
+        current_params.freq = 0.0f;
+        return;
+    }
+
+    // ================= 4. 去直流短时自相关 (ACF) 测频 =================
+    static float x[SAMPLE_N];
+    for (uint16_t i = 0; i < len; i++) {
+        x[i] = (float)adc_buf[i] - avg_raw;
+    }
+
+    static float r[MAX_LAG + 2];
+    int peak_lag = -1;
+    uint8_t passed_valley = 0;
+
+    // 动态搜索：先越过首个波谷，再抓取第一个相关峰
+    for (int tau = MIN_LAG; tau < MAX_LAG; tau++) {
+        float acc = 0.0f;
+        int calc_len = len - tau;
+        for (int n = 0; n < calc_len; n++) {
+            acc += x[n] * x[n + tau];
+        }
+        r[tau] = acc / (float)calc_len;
+
+        if (tau > MIN_LAG) {
+            if (!passed_valley) {
+                // 下降趋势停止转为上升，确认已越过零点主瓣下降区（到达波谷）
+                if (r[tau] > r[tau - 1]) {
+                    passed_valley = 1;
+                }
+            } else {
+                // 上升趋势停止转为下降，确认已找到第一个周期峰
+                if (r[tau - 1] > 0.0f && r[tau] < r[tau - 1]) {
+                    peak_lag = tau - 1;
+                    break; // 提前退出，单片机开销极低
+                }
+            }
+        }
+    }
+
+    if (peak_lag <= 0) {
+        current_params.freq = 0.0f;
+        return;
+    }
+
+    // 三点抛物线插值求极值点精细偏移
+    float y1 = r[peak_lag - 1];
+    float y2 = r[peak_lag];
+    float y3 = r[peak_lag + 1];
+    float denom = 2.0f * (2.0f * y2 - y1 - y3);
+    float delta = 0.0f;
+
+    if (fabsf(denom) > 1e-6f) {
+        delta = (y3 - y1) / denom;
+    }
+
+    float exact_period = (float)peak_lag + delta;
+    if (exact_period > 1.0f) {
+        current_params.freq = fs / exact_period;
+    } else {
+        current_params.freq = 0.0f;
+    }
 }

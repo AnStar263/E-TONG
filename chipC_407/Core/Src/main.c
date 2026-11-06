@@ -74,7 +74,6 @@ extern volatile PAGE next_page_req;
 extern volatile uint8_t page_change_flag;
 extern volatile uint8_t wave_div_change_flag;
 extern volatile uint16_t g_v_scale;
-extern volatile RifeResult res;
 extern MeasureParams_t current_params;
 /* USER CODE END PV */
 
@@ -215,10 +214,12 @@ int main(void)
           screen_draw_frame(g_last_wave, g_curr_wave, 320);
         }
 
-        current_params.vpp = (cal_vpp(adc_buf) / 4096.0f) * 10.0f;
+        // 2. 测量计算 (包含 Freq, Vavg, Vpp, Vmax, Vmin)
+        measure_signal(adc_buf, 1024, 2100000.0f);
+
+        // 3. 差分刷新参数页
         if (current_page == PAGE_PARAM && !page_change_flag) {
           param_refresh_all();
-          
         }
         current_state = Init;
         break;
