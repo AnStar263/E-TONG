@@ -3,6 +3,17 @@
 
 #include "main.h"
 #include <stdint.h>
+/* --- 自动时基相关声明 --- */
+typedef struct {
+    float time_div;     // 每格时间 (秒/格)
+    const char *label;  // 顶栏显示文本 (如 "10us")
+} TimeBase_t;
+
+// 根据信号频率自适应计算最佳时基档位和屏幕像素抽样步进
+uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step);
+
+// 顶栏时基显示刷新（force=1 强制刷，force=0 仅在档位变动时局部刷新）
+void ui_update_topbar_timebase(uint8_t tb_idx, uint8_t force);
 typedef enum {
     PAGE_CONSOLE = 0,
     PAGE_WAVE,
@@ -16,7 +27,7 @@ typedef enum {
 void screen_draw_point(uint16_t x, uint16_t y, uint16_t color);
 void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len);
 void screen_clear();
-
+uint8_t wave_adc_to_screen_y(uint16_t adc_val);
 void page_console ();
 // 控制台输出接口
 void console_clear();

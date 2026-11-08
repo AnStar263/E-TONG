@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "cwd": "${workspaceFolder}",
+            "executable": "./build/Debug/wavegenerator.elf",
+            "name": "Debug with ST-Link (OpenOCD)",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "servertype": "openocd",
+            "device": "STM32H743xx",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x.cfg"
+            ]
+        }
+    ]
+}

@@ -146,23 +146,30 @@ int main(void)
   static uint32_t last_frame_tick = 0;
 
   while(1) {
-    /* 1. 安全切页检查：在主循环主线程中有序执行，绝不与 SPI 冲突 */
+    /* main.c 中的切页分支 */
     if (page_change_flag) {
-      page_change_flag = 0;
-
-      switch (next_page_req) {
-        case PAGE_CONSOLE:
-          page_console();
-          break;
-        case PAGE_WAVE:
-          // 切回波形页前，必须清空历史旧帧坐标缓存，防止对比错误
-          memset(g_last_wave, 0, sizeof(g_last_wave));
-          page_wave();
-          break;
-        case PAGE_PARAM:        
-          page_param();
-          break;
-      } 
+        page_change_flag = 0;
+    
+        switch (next_page_req) {
+          case PAGE_CONSOLE:
+            page_console();
+            break;
+    
+          case PAGE_WAVE:
+            // 1. 强制终止并复位 DCMI，清除一切后台溢出悬挂标志
+            HAL_DCMI_Stop(&hdcmi);
+            __HAL_DCMI_CLEAR_FLAG(&hdcmi, DCMI_FLAG_OVFRI | DCMI_FLAG_ERRRI | DCMI_FLAG_FRAMERI);
+            current_state = Init;
+    
+            // 2. 正常刷屏与清空历史帧
+            memset(g_last_wave, 0, sizeof(g_last_wave));
+            page_wave();
+            break;
+    
+          case PAGE_PARAM:        
+            page_param();
+            break;
+        } 
     }
     if (wave_div_change_flag && current_page == PAGE_WAVE) {
         char strtemp[4] = {'\0'};
@@ -189,7 +196,8 @@ int main(void)
         }
         break;
 
-      case Measure:
+        case Measure:
+        // 纯硬件就绪轮询，不包含任何软件/硬件看门狗及超时机制
         if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
           HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
           current_state = Process;
@@ -202,28 +210,60 @@ int main(void)
         break;
 
       case Process:
-        //只有当前确认是波形页才绘制波形
         if (current_page == PAGE_WAVE && !page_change_flag) {
-          for (int i = 0; i < 320; i++) {
-            int32_t delta = (int32_t)adc_buf[i] - 2048;
-            int32_t y = 132 - ((delta * 100 / 2048)) * g_v_scale;
-            
-            g_curr_wave[i] = (uint8_t)y;
-          }
+            // 1. 信号测频与自动时基计算
+            measure_signal(adc_buf, 1024, FS_INIT);
+            float sample_step = 1.0f;
+            uint8_t tb_idx = ui_calc_auto_timebase(current_params.freq, FS_INIT, &sample_step);
+            ui_update_topbar_timebase(tb_idx, 0);
 
-          screen_draw_frame(g_last_wave, g_curr_wave, 320);
+            // 2. 统计当前帧极值
+            uint16_t v_min = 4095, v_max = 0;
+            for (uint16_t i = 0; i < 1024; i++) {
+                if (adc_buf[i] < v_min) v_min = adc_buf[i];
+                if (adc_buf[i] > v_max) v_max = adc_buf[i];
+            }
+            uint16_t v_pp = v_max - v_min;
+            uint16_t trig_idx = 0;
+
+            // 3. 施密特动态触发沿检索
+            uint16_t wave_span = (uint16_t)(320.0f * sample_step);
+            uint16_t search_limit = (wave_span < 1000) ? (1024 - wave_span) : 24;
+
+            #define NOISE_GATE 40 
+            if (v_pp > NOISE_GATE) {
+                uint16_t v_mid  = (v_min + v_max) >> 1;
+                uint16_t hys    = v_pp >> 4;
+                uint16_t v_low  = v_mid - hys;
+                uint16_t v_high = v_mid + hys;
+
+                uint8_t armed = 0;
+                for (uint16_t i = 0; i < search_limit; i++) {
+                    if (!armed) {
+                        if (adc_buf[i] < v_low) armed = 1;
+                    } else {
+                        if (adc_buf[i] >= v_high) {
+                            trig_idx = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 4. 按步进抽样提取并绘制
+            for (int i = 0; i < 320; i++) {
+                uint16_t sample_pos = trig_idx + (uint16_t)(i * sample_step);
+                if (sample_pos >= 1024) sample_pos = 1023;
+                g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+            }
+            screen_draw_frame(g_last_wave, g_curr_wave, 320);
         }
 
-        // 2. 测量计算 (包含 Freq, Vavg, Vpp, Vmax, Vmin)
-        measure_signal(adc_buf, 1024, 2100000.0f);
-
-        // 3. 差分刷新参数页
-        if (current_page == PAGE_PARAM && !page_change_flag) {
-          param_refresh_all();
-        }
+        // 核心修复：绘制完成后切回 Init 开启下一轮采样
         current_state = Init;
         break;
-    }
+      }
+
   }
   /* USER CODE END WHILE */
   /* USER CODE BEGIN 3 */

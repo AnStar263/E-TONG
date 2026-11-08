@@ -46,7 +46,76 @@ static MeasureParams_t last_params = {
     .vmax = -999.0f,
     .vmin = -999.0f
 };
+/* ================= 自动时基档位表 (覆盖 4kHz ~ 1MHz 测频范围) ================= */
+static const TimeBase_t g_tb_table[] = {
+    {  1.0e-6f, " 1us" },
+    {  2.0e-6f, " 2us" },
+    {  5.0e-6f, " 5us" },
+    { 10.0e-6f, "10us" },
+    { 20.0e-6f, "20us" },
+    { 50.0e-6f, "50us" },
+};
+#define TB_TABLE_SIZE (sizeof(g_tb_table) / sizeof(g_tb_table[0]))
 
+static uint8_t s_current_tb_idx = 3; // 默认 10us
+
+/**
+ * @brief 自适应时基换算
+ * @param freq     信号频率 (Hz)
+ * @param fs       ADC采样率 (2.1MHz)
+ * @param out_step 输出每像素对应的 ADC 抽样步进点数
+ * @return 匹配的最佳档位索引
+ */
+uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step)
+{
+    // 信号低于 100Hz 或纯直流，默认固定在 10us 档
+    if (freq < 100.0f) {
+        *out_step = 1.0f;
+        s_current_tb_idx = 3;
+        return s_current_tb_idx;
+    }
+
+    // 期望 10 格容纳约 2.5 个完整周期：10 * T_div = 2.5 / freq
+    float target_div = 0.25f / freq;
+
+    int best_idx = 0;
+    float min_err = 1e9f;
+    for (int i = 0; i < TB_TABLE_SIZE; i++) {
+        float err = fabsf(g_tb_table[i].time_div - target_div);
+        if (err < min_err) {
+            min_err = err;
+            best_idx = i;
+        }
+    }
+    s_current_tb_idx = (uint8_t)best_idx;
+
+    // 每像素时间 = T_div / 32；每像素步进 = dt * fs
+    float step = (g_tb_table[best_idx].time_div / 32.0f) * fs;
+
+    // 高频做浮点内插伸展（step < 1），低频步进压缩并严格防 1024 缓冲越界
+    if (step < 0.05f) step = 0.05f;
+    if (step > 3.0f)  step = 3.0f; // 320 * 3.0 = 960 点，保留 64 点触发余量
+
+    *out_step = step;
+    return s_current_tb_idx;
+}
+
+/**
+ * @brief 顶栏时基绘制 (位于 X:90 ~ 180, Y:4)
+ */
+void ui_update_topbar_timebase(uint8_t tb_idx, uint8_t force)
+{
+    static uint8_t s_last_rendered_tb = 0xFF;
+    if (tb_idx == s_last_rendered_tb && !force) return;
+    s_last_rendered_tb = tb_idx;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "TB:%s", g_tb_table[tb_idx].label);
+
+    // 局部黑色擦除后绘制黄色 16 号字，避免全屏闪烁
+    st7789_fill_rect(90, 1, 175, 23, ST7789_COLOR_BLACK);
+    st7789_write_string(90, 4, buf, ST7789_COLOR_YELLOW, ST7789_FONT_16);
+}
 /**
  * @brief 将原始 ADC 采样值 (0~4095) 转换为屏幕 Y 坐标 (25~239)
  */
@@ -75,22 +144,27 @@ void screen_draw_point(uint16_t x, uint16_t y, uint16_t color)
 }
 
 /**
- * @brief 判断坐标是否落在参考网格线上，返回对应的底色
+ * @brief 判断坐标底色：与初始绘制规则严格 1:1 对齐
  */
 static inline uint16_t get_grid_color(uint16_t x, uint16_t y)
 {
-    // 中心十字参考虚线 (Y = 132, X = 160)
-    if ((y == WAVE_CENTER_Y && (x % 4 == 0)) || (x == 160 && (y % 4 == 0))) {
+    // 1. 中心横轴 (Y = 132，每 4 像素一点)
+    if (y == WAVE_CENTER_Y && (x % 4 == 0)) {
         return ST7789_COLOR_WHITE;
     }
-    // 水平辅助参考线 (每隔 30 像素一条蓝色虚线)
+
+    // 2. 中心纵轴 (X = 160，每 6 像素一点，一大格 30 像素正好 5 等分)
+    if (x == 160 && (y >= 30 && y <= 234) && (y % 6 == 0)) {
+        return ST7789_COLOR_WHITE;
+    }
+
+    // 3. 水平辅助蓝线 (Y = 42, 72, 102, 162, 192, 222，每 16 像素一点)
     if ((y >= 42 && y <= 222) && ((y - 42) % 30 == 0) && (x % 16 == 0)) {
         return ST7789_COLOR_BLUE;
     }
-    return ST7789_COLOR_BLACK; // 普通背景黑色
-}
 
-/**
+    return ST7789_COLOR_BLACK;
+}/**
  * @brief 绘制垂直实线段（用于连接相邻两列跳变过大的波形点）
  */
 static void draw_vertical_line(uint16_t x, uint8_t y1, uint8_t y2, uint16_t color)
@@ -290,33 +364,32 @@ void page_console(void)
 /* ==================================================================== */
 
 /**
- * @brief 绘制示波器中心十字参考虚线与边框刻度
+ * @brief 绘制示波器十字网格与刻度
  */
 void wave_draw_grid(void)
 {
-    // 中心横轴 (Y = 132，即示波区 25~239 的中间)
-    uint16_t center_y = 132;
+    uint16_t center_y = WAVE_CENTER_Y;
+
+    // 1. 中心横轴 (Y = 132)
     for (uint16_t x = 0; x < 320; x += 4) {
         st7789_draw_point(x, center_y, ST7789_COLOR_WHITE);
     }
 
-    // 中心纵轴 (X = 160)
-    for (uint16_t y = UI_BODY_START_Y; y <= UI_BODY_END_Y; y += 6) {
+    // 2. 中心纵轴 (X = 160)：从 30 像素到 234 像素，步长为 6，每大格内正好 5 个小白格
+    for (uint16_t y = 30; y <= 234; y += 6) {
         st7789_draw_point(160, y, ST7789_COLOR_WHITE);
     }
 
-    // 水平网格刻度 (每隔 30 像素打点标定电压分度)
-    for (uint16_t y = UI_BODY_START_Y + 17; y < UI_BODY_END_Y; y += 30) {
+    // 3. 水平辅助蓝点：避开 x == 160，防止纵轴上的白点被蓝色盖掉
+    for (uint16_t y = 42; y <= 222; y += 30) {
         if (y == center_y) continue;
         for (uint16_t x = 0; x < 320; x += 16) {
+            if (x == 160) continue; // 关键：保护纵轴白点不被覆盖
             st7789_draw_point(x, y, ST7789_COLOR_BLUE);
         }
     }
 }
 
-/**
- * @brief 进入波形页面初始化
- */
 void page_wave(void)
 {
     current_page = PAGE_WAVE;
@@ -324,6 +397,10 @@ void page_wave(void)
     // 1. 刷新顶栏 (0~24)
     st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "WAVE", ST7789_COLOR_GREEN, ST7789_FONT_24);
+    
+    // 强制显示当前时基
+    ui_update_topbar_timebase(s_current_tb_idx, 1);
+
     char strtemp[4] = {'\0'};
     snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
     st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
@@ -332,7 +409,7 @@ void page_wave(void)
         st7789_draw_point(i, 24, ST7789_COLOR_GREEN);
     }
 
-    // 2. 彻底抹除旧页面残留的主体区域 (25~239)，并画上示波器十字网格
+    // 2. 抹除主体区域并画网格
     st7789_fill_rect(0, 25, 319, 239, ST7789_COLOR_BLACK);
     wave_draw_grid();
 }
