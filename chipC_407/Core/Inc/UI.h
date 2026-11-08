@@ -37,7 +37,7 @@ void console_printf(const char *fmt, ...);
 
 void page_wave();
 void wave_draw_grid();
-
+void ui_update_topbar_volt_div();
 
 typedef struct {
     float freq;     // 频率 (Hz)

@@ -172,13 +172,17 @@ int main(void)
         } 
     }
     if (wave_div_change_flag && current_page == PAGE_WAVE) {
-        char strtemp[4] = {'\0'};
-        snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
-        st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
-        st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
-        wave_div_change_flag = 0;
-    }
+      // 1. 刷新红色倍率显示
+      char strtemp[4] = {'\0'};
+      snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
+      st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
+      st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
 
+      // 2. 联动更新每格电压分辨率
+      ui_update_topbar_volt_div();
+
+      wave_div_change_flag = 0;
+    }
     /* 2. 状态机调度 */
     switch (current_state) {
       case Init:

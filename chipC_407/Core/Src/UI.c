@@ -60,6 +60,25 @@ static const TimeBase_t g_tb_table[] = {
 static uint8_t s_current_tb_idx = 3; // 默认 10us
 
 /**
+ * @brief 顶栏垂直电压分辨率刷新 (X: 175~255, Y: 4)
+ */
+void ui_update_topbar_volt_div(void)
+{
+    char buf[16];
+    float v_div = 1.5f / (float)g_v_scale;
+
+    if (v_div >= 1.0f) {
+        snprintf(buf, sizeof(buf), "VB:%.1fV", v_div);
+    } else {
+        snprintf(buf, sizeof(buf), "VB:%dmV", (int)(v_div * 1000.0f + 0.5f));
+    }
+
+    st7789_fill_rect(175, 1, 260, 23, ST7789_COLOR_BLACK);
+    st7789_write_string(175, 4, buf, ST7789_COLOR_YELLOW, ST7789_FONT_16);
+}
+
+
+/**
  * @brief 自适应时基换算
  * @param freq     信号频率 (Hz)
  * @param fs       ADC采样率 (2.1MHz)
@@ -398,8 +417,9 @@ void page_wave(void)
     st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "WAVE", ST7789_COLOR_GREEN, ST7789_FONT_24);
     
-    // 强制显示当前时基
+    // 显示当前水平时基与垂直档位
     ui_update_topbar_timebase(s_current_tb_idx, 1);
+    ui_update_topbar_volt_div();
 
     char strtemp[4] = {'\0'};
     snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
