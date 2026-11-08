@@ -256,9 +256,11 @@ int main(void)
 
             // 4. 按步进抽样提取并绘制
             for (int i = 0; i < 320; i++) {
-                uint16_t sample_pos = trig_idx + (uint16_t)(i * sample_step);
-                if (sample_pos >= 1024) sample_pos = 1023;
-                g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+              int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
+              if (sample_pos < 0)    sample_pos = 0;
+              if (sample_pos > 1023) sample_pos = 1023;
+
+              g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
             }
             screen_draw_frame(g_last_wave, g_curr_wave, 320);
         }

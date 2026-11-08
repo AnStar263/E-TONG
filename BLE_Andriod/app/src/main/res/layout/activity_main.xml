@@ -7,14 +7,13 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true">
 
-    <!-- 主界面容器 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#F8FAFC"
         android:orientation="vertical">
 
-        <!-- 顶部固定导航栏 (Top Bar) -->
+        <!-- 顶部固定导航栏 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -57,12 +56,11 @@
                 app:cornerRadius="18dp" />
         </LinearLayout>
 
-        <!-- 页面多视图容器 -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <!-- 页面 1：【参数】界面 -->
+            <!-- 页面 1：参数界面 -->
             <ScrollView
                 android:id="@+id/pageParameters"
                 android:layout_width="match_parent"
@@ -76,7 +74,7 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- 蓝牙连接状态横幅 -->
+                    <!-- 蓝牙状态 -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -95,7 +93,7 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- 实时测量参数仪表盘 (适配 F4 组 0-800kHz 指标) -->
+                    <!-- 测量参数仪表盘 -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -270,8 +268,8 @@
                                 android:backgroundTint="#2563EB"
                                 android:text="波形页"
                                 android:textColor="#FFFFFF"
-                                android:textStyle="bold"
                                 android:textSize="13sp"
+                                android:textStyle="bold"
                                 app:cornerRadius="22dp" />
 
                             <Button
@@ -298,6 +296,7 @@
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
                         </LinearLayout>
+
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -330,14 +329,14 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 模块 2：Y轴垂直缩放 / 分辨率控制 -->
+                    <!-- 模块 2：Y轴垂直缩放滑块 -->
                     <TextView
                         android:id="@+id/tvYScaleLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:layout_marginBottom="8dp"
-                        android:text="Y轴垂直缩放 / 分辨率控制 (当前: ×1)"
+                        android:text="Y轴垂直缩放 (当前: ×1)"
                         android:textColor="#475569"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -347,59 +346,70 @@
                         android:layout_height="wrap_content"
                         android:background="#FFFFFF"
                         android:elevation="1dp"
-                        android:orientation="horizontal"
-                        android:padding="10dp">
+                        android:orientation="vertical"
+                        android:padding="14dp">
 
-                        <Button
-                            android:id="@+id/btnY1"
-                            android:layout_width="0dp"
-                            android:layout_height="46dp"
-                            android:layout_margin="3dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="#2563EB"
-                            android:text="Y ×1"
-                            android:textColor="#FFFFFF"
-                            android:textStyle="bold"
-                            app:cornerRadius="22dp" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp">
 
-                        <Button
-                            android:id="@+id/btnY2"
-                            android:layout_width="0dp"
-                            android:layout_height="46dp"
-                            android:layout_margin="3dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="#BAE6FD"
-                            android:text="Y ×2"
-                            android:textColor="#0F172A"
-                            android:textStyle="bold"
-                            app:cornerRadius="22dp" />
+                            <TextView
+                                android:id="@+id/tvYLabel0"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="start"
+                                android:text="×1"
+                                android:textColor="#2563EB"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
 
-                        <Button
-                            android:id="@+id/btnY4"
-                            android:layout_width="0dp"
-                            android:layout_height="46dp"
-                            android:layout_margin="3dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="#BAE6FD"
-                            android:text="Y ×4"
-                            android:textColor="#0F172A"
-                            android:textStyle="bold"
-                            app:cornerRadius="22dp" />
+                            <TextView
+                                android:id="@+id/tvYLabel1"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="×2"
+                                android:textColor="#64748B"
+                                android:textSize="13sp" />
 
-                        <Button
-                            android:id="@+id/btnY8"
-                            android:layout_width="0dp"
-                            android:layout_height="46dp"
-                            android:layout_margin="3dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="#BAE6FD"
-                            android:text="Y ×8"
-                            android:textColor="#0F172A"
-                            android:textStyle="bold"
-                            app:cornerRadius="22dp" />
+                            <TextView
+                                android:id="@+id/tvYLabel2"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="×4"
+                                android:textColor="#64748B"
+                                android:textSize="13sp" />
+
+                            <TextView
+                                android:id="@+id/tvYLabel3"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end"
+                                android:text="×8"
+                                android:textColor="#64748B"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/sbYScale"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:max="3"
+                            android:progress="0"
+                            android:progressTint="#2563EB"
+                            android:thumbTint="#2563EB" />
                     </LinearLayout>
 
-                    <!-- 模块 3：X轴时基分辨率与水平控制 (发挥部分 c 强化) -->
+                    <!-- 模块 3：X轴时基分辨率控制 (按键加减) -->
                     <TextView
                         android:id="@+id/tvXScaleLabel"
                         android:layout_width="wrap_content"
@@ -456,44 +466,13 @@
                             android:orientation="horizontal">
 
                             <Button
-                                android:id="@+id/btnXLeft"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_margin="3dp"
-                                android:layout_weight="1"
-                                android:backgroundTint="#BAE6FD"
-                                android:text="⬅ X轴左移"
-                                android:textColor="#0F172A"
-                                android:textSize="13sp"
-                                app:cornerRadius="22dp" />
-
-                            <Button
-                                android:id="@+id/btnXRight"
-                                android:layout_width="0dp"
-                                android:layout_height="44dp"
-                                android:layout_margin="3dp"
-                                android:layout_weight="1"
-                                android:backgroundTint="#BAE6FD"
-                                android:text="X轴右移 ➡"
-                                android:textColor="#0F172A"
-                                android:textSize="13sp"
-                                app:cornerRadius="22dp" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:orientation="horizontal">
-
-                            <Button
                                 android:id="@+id/btnXReset"
                                 android:layout_width="0dp"
                                 android:layout_height="44dp"
                                 android:layout_margin="3dp"
                                 android:layout_weight="1"
                                 android:backgroundTint="#E2E8F0"
-                                android:text="坐标居中复位"
+                                android:text="自适应 / 复位 (0)"
                                 android:textColor="#0F172A"
                                 android:textSize="13sp"
                                 app:cornerRadius="22dp" />
@@ -513,7 +492,38 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <!-- 底部通信日志简报 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btnXLeft"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_margin="3dp"
+                            android:layout_weight="1"
+                            android:backgroundTint="#BAE6FD"
+                            android:text="⬅ X轴左移"
+                            android:textColor="#0F172A"
+                            android:textSize="13sp"
+                            app:cornerRadius="22dp" />
+
+                        <Button
+                            android:id="@+id/btnXRight"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_margin="3dp"
+                            android:layout_weight="1"
+                            android:backgroundTint="#BAE6FD"
+                            android:text="X轴右移 ➡"
+                            android:textColor="#0F172A"
+                            android:textSize="13sp"
+                            app:cornerRadius="22dp" />
+                    </LinearLayout>
+
+                    <!-- 通信日志 -->
                     <TextView
                         android:id="@+id/tvLog"
                         android:layout_width="match_parent"
@@ -529,7 +539,7 @@
                 </LinearLayout>
             </ScrollView>
 
-            <!-- 页面 2：【控制台】界面 (保持不变) -->
+            <!-- 页面 2：控制台界面 -->
             <LinearLayout
                 android:id="@+id/pageConsole"
                 android:layout_width="match_parent"
@@ -667,7 +677,7 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- 抽屉侧边栏 (Drawer) -->
+    <!-- 抽屉侧边栏 -->
     <LinearLayout
         android:id="@+id/navigationDrawer"
         android:layout_width="280dp"

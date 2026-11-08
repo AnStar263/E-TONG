@@ -29,6 +29,13 @@
 volatile uint16_t g_v_scale = 1;    // 垂直增益
 static int16_t g_y_offset = 0;    // 垂直偏移量
 
+#define TB_TABLE_SIZE   7
+#define TB_MID_INDEX    3   // 中间基准档：10us
+
+volatile int16_t g_x_offset = 0; // 水平偏移量 (像素单位)
+#define X_SHIFT_STEP  16          // 每次平移 16 像素
+#define X_SHIFT_MAX   320         // 最大平移范围 ±320 像素
+
 /* --- 参数页显示缓存 --- */
 volatile MeasureParams_t current_params = {0};
 
@@ -47,17 +54,23 @@ static MeasureParams_t last_params = {
     .vmin = -999.0f
 };
 /* ================= 自动时基档位表 (覆盖 4kHz ~ 1MHz 测频范围) ================= */
-static const TimeBase_t g_tb_table[] = {
-    {  1.0e-6f, " 1us" },
-    {  2.0e-6f, " 2us" },
-    {  5.0e-6f, " 5us" },
-    { 10.0e-6f, "10us" },
-    { 20.0e-6f, "20us" },
-    { 50.0e-6f, "50us" },
+
+
+static const TimeBase_t g_tb_table[TB_TABLE_SIZE] = {
+    {   1.0e-6f, " 1us" }, // 0: 最放大
+    {   2.0e-6f, " 2us" }, // 1
+    {   5.0e-6f, " 5us" }, // 2
+    {  10.0e-6f, "10us" }, // 3: 中心默认档
+    {  20.0e-6f, "20us" }, // 4
+    {  50.0e-6f, "50us" }, // 5
+    { 100.0e-6f, "100us"}  // 6: 最缩小
 };
+
 #define TB_TABLE_SIZE (sizeof(g_tb_table) / sizeof(g_tb_table[0]))
 
-static uint8_t s_current_tb_idx = 3; // 默认 10us
+static uint8_t s_current_tb_idx = TB_MID_INDEX; // 默认 10us
+static uint8_t s_auto_tb_enable = 1;            // 默认开启自适应
+
 
 /**
  * @brief 顶栏垂直电压分辨率刷新 (X: 175~255, Y: 4)
@@ -87,38 +100,33 @@ void ui_update_topbar_volt_div(void)
  */
 uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step)
 {
-    // 信号低于 100Hz 或纯直流，默认固定在 10us 档
-    if (freq < 100.0f) {
-        *out_step = 1.0f;
-        s_current_tb_idx = 3;
-        return s_current_tb_idx;
-    }
-
-    // 期望 10 格容纳约 2.5 个完整周期：10 * T_div = 2.5 / freq
-    float target_div = 0.25f / freq;
-
-    int best_idx = 0;
-    float min_err = 1e9f;
-    for (int i = 0; i < TB_TABLE_SIZE; i++) {
-        float err = fabsf(g_tb_table[i].time_div - target_div);
-        if (err < min_err) {
-            min_err = err;
-            best_idx = i;
+    // 开启自适应时自动匹配；若被手动按键打断，则直接使用当前手动选定的档位
+    if (s_auto_tb_enable) {
+        if (freq < 100.0f) {
+            s_current_tb_idx = TB_MID_INDEX;
+        } else {
+            float target_div = 0.25f / freq;
+            int best_idx = 0;
+            float min_err = 1e9f;
+            for (int i = 0; i < TB_TABLE_SIZE; i++) {
+                float err = fabsf(g_tb_table[i].time_div - target_div);
+                if (err < min_err) {
+                    min_err = err;
+                    best_idx = i;
+                }
+            }
+            s_current_tb_idx = (uint8_t)best_idx;
         }
     }
-    s_current_tb_idx = (uint8_t)best_idx;
 
-    // 每像素时间 = T_div / 32；每像素步进 = dt * fs
-    float step = (g_tb_table[best_idx].time_div / 32.0f) * fs;
-
-    // 高频做浮点内插伸展（step < 1），低频步进压缩并严格防 1024 缓冲越界
+    // 抽样步进点数换算
+    float step = (g_tb_table[s_current_tb_idx].time_div / 32.0f) * fs;
     if (step < 0.05f) step = 0.05f;
-    if (step > 3.0f)  step = 3.0f; // 320 * 3.0 = 960 点，保留 64 点触发余量
-
+    if (step > 3.0f)  step = 3.0f;
     *out_step = step;
+
     return s_current_tb_idx;
 }
-
 /**
  * @brief 顶栏时基绘制 (位于 X:90 ~ 180, Y:4)
  */
@@ -554,24 +562,47 @@ void set_y_scale(uint8_t y_scale) {
     g_v_scale = y_scale;
 }
 
-void x_zoom_in() {
-
+// 时基放大（分度值变小，波形水平拉伸）
+void x_zoom_in(void)
+{
+    if (s_current_tb_idx > 0) {
+        s_current_tb_idx--;
+        s_auto_tb_enable = 0; // 手动干预后锁定，关闭自适应
+    }
 }
 
-void x_zoom_out() {
-
+// 时基缩小（分度值变大，波形水平压缩）
+void x_zoom_out(void)
+{
+    if (s_current_tb_idx < TB_TABLE_SIZE - 1) {
+        s_current_tb_idx++;
+        s_auto_tb_enable = 0; // 手动干预后锁定，关闭自适应
+    }
 }
 
-void x_shift_left() {
-
+// 复位视图：垂直、水平偏移与时基均恢复初始状态
+void reset_view(void)
+{
+    g_v_scale = 1;
+    s_current_tb_idx = TB_MID_INDEX;
+    s_auto_tb_enable = 1;
+    g_x_offset = 0; // 坐标居中复位
 }
 
-void x_shift_right() {
-
+// 波形左移（显示更靠后的样点）
+void x_shift_left(void)
+{
+    if (g_x_offset < X_SHIFT_MAX) {
+        g_x_offset += X_SHIFT_STEP;
+    }
 }
 
-void reset_view() {
-
+// 波形右移（显示更靠前的样点）
+void x_shift_right(void)
+{
+    if (g_x_offset > -X_SHIFT_MAX) {
+        g_x_offset -= X_SHIFT_STEP;
+    }
 }
 
 void run_stop_toggle() {

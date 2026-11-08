@@ -38,6 +38,11 @@ void console_printf(const char *fmt, ...);
 void page_wave();
 void wave_draw_grid();
 void ui_update_topbar_volt_div();
+/* 导出水平偏移变量与函数 */
+extern volatile int16_t g_x_offset;
+
+void x_shift_left(void);
+void x_shift_right(void);
 
 typedef struct {
     float freq;     // 频率 (Hz)

@@ -17,6 +17,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -58,13 +59,19 @@ public class MainActivity extends AppCompatActivity {
 
     // 参数页面 UI 控件
     private TextView tvStatus, tvVavg, tvVpp, tvVmax, tvFreq, tvYScaleLabel, tvXScaleLabel, tvLog;
-    private Button btnConnect, btnY1, btnY2, btnY4, btnY8;
+    private Button btnConnect;
 
-    // X轴时基分辨率档位管理 (发挥部分 c 项要求)
+    // Y轴垂直缩放滑块
+    private SeekBar sbYScale;
+    private final TextView[] yLabels = new TextView[4];
+    private final int[] yValues = {1, 2, 4, 8};
+    private final String[] yCommands = {"1", "2", "4", "8"};
+
+    // X轴时基 7 档管理 (默认第 3 档: 10 μs/div 为中心基准档)
     private final String[] xTimebaseScales = {
-            "1 μs/div", "2 μs/div", "5 μs/div", "10 μs/div", "20 μs/div", "50 μs/div", "100 μs/div", "200 μs/div", "500 μs/div"
+            "1 μs/div", "2 μs/div", "5 μs/div", "10 μs/div", "20 μs/div", "50 μs/div", "100 μs/div"
     };
-    private int currentXIndex = 3; // 默认 10 μs/div
+    private int currentXIndex = 3;
 
     // 控制台页面 UI 控件
     private ScrollView svConsoleLog;
@@ -73,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
 
     // 本地显示页面按键
     private Button btnPageWave, btnPageParam, btnPageConsole;
-    private int currentLocalPage = 0; // 0: 波形页, 1: 参数页, 2: 控制台页
+    private int currentLocalPage = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
         navItemParam = findViewById(R.id.navItemParam);
         navItemConsole = findViewById(R.id.navItemConsole);
 
-        // 2. 参数页控件
+        // 2. 参数页数据显示控件
         tvStatus = findViewById(R.id.tvStatus);
         tvVavg = findViewById(R.id.tvVavg);
         tvVpp = findViewById(R.id.tvVpp);
@@ -109,11 +116,6 @@ public class MainActivity extends AppCompatActivity {
         tvYScaleLabel = findViewById(R.id.tvYScaleLabel);
         tvXScaleLabel = findViewById(R.id.tvXScaleLabel);
         tvLog = findViewById(R.id.tvLog);
-
-        btnY1 = findViewById(R.id.btnY1);
-        btnY2 = findViewById(R.id.btnY2);
-        btnY4 = findViewById(R.id.btnY4);
-        btnY8 = findViewById(R.id.btnY8);
 
         // 3. 控制台页控件
         svConsoleLog = findViewById(R.id.svConsoleLog);
@@ -125,15 +127,15 @@ public class MainActivity extends AppCompatActivity {
         Button btnQuickReset = findViewById(R.id.btnQuickReset);
         Button btnQuickStop = findViewById(R.id.btnQuickStop);
 
-        // --- 抽屉侧边栏打开与页面选择 ---
+        // --- 抽屉侧边栏与页面切换 ---
         btnMenu.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
         navItemParam.setOnClickListener(v -> switchPage(true));
         navItemConsole.setOnClickListener(v -> switchPage(false));
 
-        // --- 蓝牙连接按钮 ---
+        // --- 蓝牙连接 ---
         btnConnect.setOnClickListener(v -> showDeviceSelectDialog());
 
-        // --- 参数页：本地显示页面切换指令 (带UI高亮联动) ---
+        // --- 本地屏幕页面切换按键 ---
         btnPageWave = findViewById(R.id.btnPageWave);
         btnPageParam = findViewById(R.id.btnPageParam);
         btnPageConsole = findViewById(R.id.btnPageConsole);
@@ -165,25 +167,29 @@ public class MainActivity extends AppCompatActivity {
             sendCommand("N", "本地显示 [下一页面]");
         });
 
-        // --- 参数页：Y轴 1、2、4、8倍分辨率/垂直缩放 ---
-        btnY1.setOnClickListener(v -> {
-            updateYScaleUI(1);
-            sendCommand("1", "Y轴分辨率设为 ×1");
-        });
-        btnY2.setOnClickListener(v -> {
-            updateYScaleUI(2);
-            sendCommand("2", "Y轴分辨率设为 ×2");
-        });
-        btnY4.setOnClickListener(v -> {
-            updateYScaleUI(4);
-            sendCommand("4", "Y轴分辨率设为 ×4");
-        });
-        btnY8.setOnClickListener(v -> {
-            updateYScaleUI(8);
-            sendCommand("8", "Y轴分辨率设为 ×8");
+        // --- Y 轴垂直缩放滑块绑定 ---
+        sbYScale = findViewById(R.id.sbYScale);
+        yLabels[0] = findViewById(R.id.tvYLabel0);
+        yLabels[1] = findViewById(R.id.tvYLabel1);
+        yLabels[2] = findViewById(R.id.tvYLabel2);
+        yLabels[3] = findViewById(R.id.tvYLabel3);
+
+        sbYScale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    updateYSliderUI(progress);
+                    sendCommand(yCommands[progress], "Y轴设为 ×" + yValues[progress]);
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // --- 参数页：X轴时基分辨率与水平控制 ---
+        findViewById(R.id.btnXLeft).setOnClickListener(v -> sendCommand("L", "X轴波形左移"));
+        findViewById(R.id.btnXRight).setOnClickListener(v -> sendCommand("R", "X轴波形右移"));
+
+        // --- X 轴时基加减按键控制 ---
         findViewById(R.id.btnXZoomIn).setOnClickListener(v -> {
             if (currentXIndex > 0) {
                 currentXIndex--;
@@ -191,6 +197,7 @@ public class MainActivity extends AppCompatActivity {
             updateXScaleUI();
             sendCommand("+", "X轴时基放大(+) -> " + xTimebaseScales[currentXIndex]);
         });
+
         findViewById(R.id.btnXZoomOut).setOnClickListener(v -> {
             if (currentXIndex < xTimebaseScales.length - 1) {
                 currentXIndex++;
@@ -198,17 +205,18 @@ public class MainActivity extends AppCompatActivity {
             updateXScaleUI();
             sendCommand("-", "X轴时基缩小(-) -> " + xTimebaseScales[currentXIndex]);
         });
-        findViewById(R.id.btnXLeft).setOnClickListener(v -> sendCommand("L", "X轴波形左移"));
-        findViewById(R.id.btnXRight).setOnClickListener(v -> sendCommand("R", "X轴波形右移"));
+
         findViewById(R.id.btnXReset).setOnClickListener(v -> {
             currentXIndex = 3;
             updateXScaleUI();
-            updateYScaleUI(1);
-            sendCommand("0", "X/Y轴缩放平移复位");
+            sbYScale.setProgress(0);
+            updateYSliderUI(0);
+            sendCommand("0", "复位并开启自适应时基 (中间档 10us)");
         });
+
         findViewById(R.id.btnRunStop).setOnClickListener(v -> sendCommand("S", "切换 [运行/暂停] 状态"));
 
-        // --- 控制台页：终端清空与自定义指令发送 ---
+        // --- 控制台页交互 ---
         btnConsoleClear.setOnClickListener(v -> tvConsoleLog.setText(""));
         btnConsoleSend.setOnClickListener(v -> sendConsoleInput());
         etConsoleInput.setOnEditorActionListener((v, actionId, event) -> {
@@ -219,14 +227,29 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        // --- 控制台页：快捷按键 ---
         btnQuickWave.setOnClickListener(v -> sendCommand("W", "快捷指令 W"));
         btnQuickReset.setOnClickListener(v -> sendCommand("0", "快捷指令 0"));
         btnQuickStop.setOnClickListener(v -> sendCommand("S", "快捷指令 S"));
 
-        // 初始化默认高亮第 0 页（波形页）
+        // 初始化界面状态
         updateLocalPageUI(0);
+        updateYSliderUI(0);
+        updateXScaleUI();
     }
+
+    private void updateYSliderUI(int progress) {
+        tvYScaleLabel.setText("Y轴垂直缩放 (当前: ×" + yValues[progress] + ")");
+        for (int i = 0; i < yLabels.length; i++) {
+            boolean selected = (i == progress);
+            yLabels[i].setTextColor(Color.parseColor(selected ? "#2563EB" : "#64748B"));
+            yLabels[i].setTypeface(null, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+        }
+    }
+
+    private void updateXScaleUI() {
+        tvXScaleLabel.setText("X轴时基分辨率控制 (当前: " + xTimebaseScales[currentXIndex] + ")");
+    }
+
     private void switchPage(boolean isParamPage) {
         if (isParamPage) {
             pageParameters.setVisibility(View.VISIBLE);
@@ -264,29 +287,6 @@ public class MainActivity extends AppCompatActivity {
             tvConsoleLog.append("[" + time + "] [" + tag + "] " + message + "\n");
             svConsoleLog.post(() -> svConsoleLog.fullScroll(View.FOCUS_DOWN));
         });
-    }
-
-    // 更新 Y 轴高亮与标签
-    private void updateYScaleUI(int scale) {
-        tvYScaleLabel.setText("Y轴垂直缩放 / 分辨率控制 (当前: ×" + scale + ")");
-        int activeColor = Color.parseColor("#2563EB");
-        int normalColor = Color.parseColor("#BAE6FD");
-        int textColorActive = Color.parseColor("#FFFFFF");
-        int textColorNormal = Color.parseColor("#0F172A");
-
-        Button[] buttons = {btnY1, btnY2, btnY4, btnY8};
-        int[] scales = {1, 2, 4, 8};
-
-        for (int i = 0; i < buttons.length; i++) {
-            boolean isSelected = (scales[i] == scale);
-            buttons[i].setBackgroundTintList(ColorStateList.valueOf(isSelected ? activeColor : normalColor));
-            buttons[i].setTextColor(isSelected ? textColorActive : textColorNormal);
-        }
-    }
-
-    // 更新 X 轴时基分辨率标签
-    private void updateXScaleUI() {
-        tvXScaleLabel.setText("X轴时基分辨率控制 (当前: " + xTimebaseScales[currentXIndex] + ")");
     }
 
     private void requestBluetoothPermissions() {
@@ -408,7 +408,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // 解析单片机回传数据: Vavg,Vpp,Vmax,Freq
     private void parseAndDisplayData(String rawLine) {
         runOnUiThread(() -> {
             tvLog.setText("通信监控：收到 " + rawLine);
@@ -440,7 +439,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // 格式化 0Hz - 800kHz 频率，确保精度直观展示
     private String formatFrequency(double hz) {
         if (hz >= 1_000.0) {
             return String.format(Locale.US, "%.3f kHz", hz / 1_000.0);
@@ -493,13 +491,12 @@ public class MainActivity extends AppCompatActivity {
         closeConnection();
     }
 
-    // 更新本地页面按钮的高亮状态 (选中的变深色 #2563EB，未选中的为浅色 #BAE6FD)
     private void updateLocalPageUI(int pageIndex) {
         currentLocalPage = pageIndex;
-        int activeColor = Color.parseColor("#2563EB");     // 深蓝色高亮
-        int normalColor = Color.parseColor("#BAE6FD");     // 浅蓝色默认
-        int textColorActive = Color.parseColor("#FFFFFF"); // 白色文字
-        int textColorNormal = Color.parseColor("#0F172A"); // 深色文字
+        int activeColor = Color.parseColor("#2563EB");
+        int normalColor = Color.parseColor("#BAE6FD");
+        int textColorActive = Color.parseColor("#FFFFFF");
+        int textColorNormal = Color.parseColor("#0F172A");
 
         Button[] buttons = {btnPageWave, btnPageParam, btnPageConsole};
 

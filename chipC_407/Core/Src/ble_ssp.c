@@ -99,40 +99,30 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART1)
     {
-        switch (rx_data)
-        {
-            case 'W': 
-                next_page_req = PAGE_WAVE;
-                page_change_flag = 1;
-                break;
-            case 'C':
-                next_page_req = PAGE_CONSOLE;
-                page_change_flag = 1;
-                break;
-            case 'M':
-                next_page_req = PAGE_PARAM;
-                page_change_flag = 1;
-                break;
-            case '1':
-                set_y_scale(1);
-                wave_div_change_flag = 1;
-                break;
-            case '2':
-                set_y_scale(2);
-                wave_div_change_flag = 1;
-                break;
-            case '4':
-                set_y_scale(4);
-                wave_div_change_flag = 1;
-                break;
-            case '8':
-                set_y_scale(8);
-                wave_div_change_flag = 1;
-                break;
-            // 其他指令 (如缩放等)...
+        switch (rx_data) {
+          // Y轴垂直分辨率
+          case '1': set_y_scale(1); wave_div_change_flag = 1; break;
+          case '2': set_y_scale(2); wave_div_change_flag = 1; break;
+          case '4': set_y_scale(4); wave_div_change_flag = 1; break;
+          case '8': set_y_scale(8); wave_div_change_flag = 1; break;
+
+          // X轴时基按键
+          case '+': x_zoom_in();  break;
+          case '-': x_zoom_out(); break;
+          case '0': reset_view(); wave_div_change_flag = 1; break;
+
+          // 恢复标志位安全切页（交给 main 主循环处理，严禁在中断内调 UI 刷屏）
+          case 'W': next_page_req = PAGE_WAVE;    page_change_flag = 1; break;
+          case 'M': next_page_req = PAGE_PARAM;   page_change_flag = 1; break;
+          case 'C': next_page_req = PAGE_CONSOLE; page_change_flag = 1; break;
+          case 'S': run_stop_toggle(); break;
+
+          // X轴平移控制
+          case 'L': x_shift_left();  break; // 波形左移
+          case 'R': x_shift_right(); break; // 波形右移
         }
 
-        // 重新开启下一次单字节接收
+        // 直接使用形参 huart，彻底消除未定义警告
         HAL_UART_Receive_IT(huart, (uint8_t *)&rx_data, 1);
     }
 }
