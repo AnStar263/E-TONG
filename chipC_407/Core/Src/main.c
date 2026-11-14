@@ -328,12 +328,14 @@ int main(void)
                 if (adc_buf[i] > v_max) v_max = adc_buf[i];
             }
             uint16_t v_pp = v_max - v_min;
-            uint16_t trig_idx = 0;
+            uint16_t trig_start = 260; // 预留 260 点预触发历史供右移查看
+            uint16_t trig_idx = trig_start;
 
-            // 按 1.3 倍单周期设置搜索上限：保证大时基下也能捕获上升沿，且留足右侧缓冲
             uint16_t period_pts = (current_params.freq > 10.0f) ? (uint16_t)(g_active_fs / current_params.freq) : 125;
             uint16_t search_limit = (uint16_t)(period_pts * 1.3f) + 10;
             if (search_limit > 400) search_limit = 400;
+            uint16_t search_end = trig_start + search_limit;
+            if (search_end > 1024) search_end = 1024;
 
             #define NOISE_GATE 40
             if (v_pp > NOISE_GATE) {
@@ -343,7 +345,7 @@ int main(void)
                 uint16_t v_high = v_mid + hys;
 
                 uint8_t armed = 0;
-                for (uint16_t i = 0; i < search_limit; i++) {
+                for (uint16_t i = trig_start; i < search_end; i++) {
                     if (!armed) {
                         if (adc_buf[i] < v_low) armed = 1;
                     } else {
@@ -359,21 +361,13 @@ int main(void)
                 ui_update_topbar_timebase(tb_idx, 0);
                 for (int i = 0; i < 320; i++) {
                     int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
-                    if (sample_pos < 0)    sample_pos = 0;
-                    if (sample_pos > 1023) sample_pos = 1023;
-                    g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+                    if (sample_pos < 0 || sample_pos > 1023) {
+                        g_curr_wave[i] = 0; // 超出采样存储区留空，避免重复画 adc_buf[0]
+                    } else {
+                        g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+                    }
                 }
                 screen_draw_frame(g_last_wave, g_curr_wave, 320);
-            }
-            else if (current_page == PAGE_PARAM) {
-                param_refresh_all();
-                for (int i = 0; i < 320; i++) {
-                    int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
-                    if (sample_pos < 0)    sample_pos = 0;
-                    if (sample_pos > 1023) sample_pos = 1023;
-                    g_curr_wave[i] = wave_adc_to_param_y(adc_buf[sample_pos]);
-                }
-                param_draw_frame(g_last_wave, g_curr_wave, 320);
             }
         }
 

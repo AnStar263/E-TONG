@@ -248,13 +248,11 @@ void screen_clear_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 {
     if (current_page != PAGE_WAVE) return;
-    uint8_t has_last = (last_frame[0] >= WAVE_AREA_TOP);
 
     for (uint16_t i = 0; i < len; i++) {
-        if (has_last) {
-            if (i == 0) {
-                if (last_frame[0] != draw_frame[0])
-                    screen_draw_point(0, last_frame[0], get_grid_color(0, last_frame[0]));
+        if (last_frame[i] >= WAVE_AREA_TOP) {
+            if (i == 0 || last_frame[i - 1] < WAVE_AREA_TOP) {
+                screen_draw_point(i, last_frame[i], get_grid_color(i, last_frame[i]));
             } else {
                 int16_t ldiff = (int16_t)last_frame[i] - (int16_t)last_frame[i - 1];
                 if (ldiff > 1 || ldiff < -1)
@@ -264,14 +262,16 @@ void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
             }
         }
 
-        if (i == 0) {
-            screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
-        } else {
-            int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
-            if (diff > 1 || diff < -1)
-                draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
-            else
+        if (draw_frame[i] >= WAVE_AREA_TOP) {
+            if (i == 0 || draw_frame[i - 1] < WAVE_AREA_TOP) {
                 screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+            } else {
+                int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
+                if (diff > 1 || diff < -1)
+                    draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
+                else
+                    screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+            }
         }
     }
     memcpy(last_frame, draw_frame, len);
