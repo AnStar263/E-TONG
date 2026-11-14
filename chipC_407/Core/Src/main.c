@@ -30,12 +30,26 @@ typedef enum {
 } State;
 /* USER CODE END PTD */
 
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
 /* Private variables ---------------------------------------------------------*/
 DAC_HandleTypeDef hdac;
+
 DCMI_HandleTypeDef hdcmi;
 DMA_HandleTypeDef hdma_dcmi;
+
 SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -43,7 +57,7 @@ static uint8_t g_last_wave[320] = {0};
 static uint8_t g_curr_wave[320] = {0};
 __attribute__((aligned(4))) uint16_t adc_buf[1024];
 uint8_t dma_full_flag = 0;
-__attribute__((aligned(4))) uint16_t raw_adc_buf[4096];
+__attribute__((aligned(4))) uint16_t raw_adc_buf[8192];
 static uint8_t g_decim_factor = 1;
 volatile uint8_t rx_data = '0';
 State current_state = Coarse_Init;
@@ -55,6 +69,7 @@ extern volatile uint8_t page_change_flag;
 extern volatile uint8_t wave_div_change_flag;
 extern volatile uint16_t g_v_scale;
 extern volatile MeasureParams_t current_params;
+extern volatile uint8_t s_current_tb_idx;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -66,7 +81,11 @@ static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_DAC_Init(void);
+/* USER CODE BEGIN PFP */
 
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 static void DCMI_ForceReset(void)
@@ -126,13 +145,37 @@ static void DCMI_StartCapture(uint16_t word_len)
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
     delay_us_systick(15);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-}/* USER CODE END 0 */
+}
+/* USER CODE END 0 */
 
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
+
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
   SystemClock_Config();
 
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
@@ -140,7 +183,6 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DCMI_Init();
   MX_DAC_Init();
-
   /* USER CODE BEGIN 2 */
   st7789_init();
   page_console();
@@ -151,6 +193,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
+  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   static uint32_t last_frame_tick = 0;
   static uint32_t last_ble_tick = 0;
@@ -211,7 +254,7 @@ int main(void)
         }
         break;
 
-      case Fine_Init:
+        case Fine_Init:
         {
           if (current_params.freq >= 5500.0f) {
             // 高频：1x 直采，硬件时钟 >= 1 MHz
@@ -220,8 +263,14 @@ int main(void)
             g_decim_factor = 1;
             g_active_fs = TIM1_SetSampleRate(target_fs);
             DCMI_StartCapture(512);
+          } else if (s_current_tb_idx >= 10) {
+            // 2ms 大时基：硬件 1 MHz 采 8192 点，8x 抽取等效 125 kHz（窗口 8.19ms）
+            float hw_fs = TIM1_SetSampleRate(1000000.0f);
+            g_decim_factor = 8;
+            g_active_fs = hw_fs / 8.0f;
+            DCMI_StartCapture(4096);
           } else {
-            // 低频（如 1kHz）：硬件保持 1 MHz 采 4096 点，4x 抽取等效 250 kHz
+            // 常规低频：硬件 1 MHz 采 4096 点，4x 抽取等效 250 kHz（窗口 4.10ms）
             float hw_fs = TIM1_SetSampleRate(1000000.0f);
             g_decim_factor = 4;
             g_active_fs = hw_fs / 4.0f;
@@ -231,26 +280,29 @@ int main(void)
           current_state = Fine_Wait;
         }
         break;
-
-        case Fine_Wait:
-          if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
-            if (g_decim_factor == 4) {
-              for (uint16_t i = 0; i < 1024; i++) {
-                uint32_t idx = i * 4;
-                adc_buf[i] = (raw_adc_buf[idx] + raw_adc_buf[idx + 1] +
-                              raw_adc_buf[idx + 2] + raw_adc_buf[idx + 3]) >> 2;
+      case Fine_Wait:
+        if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
+          if (g_decim_factor > 1) {
+            uint8_t shift = (g_decim_factor == 8) ? 3 : 2;
+            for (uint16_t i = 0; i < 1024; i++) {
+              uint32_t sum = 0;
+              uint32_t base = i * g_decim_factor;
+              for (uint8_t k = 0; k < g_decim_factor; k++) {
+                sum += raw_adc_buf[base + k];
               }
-            } else {
-              memcpy(adc_buf, raw_adc_buf, 1024 * sizeof(uint16_t));
+              adc_buf[i] = (uint16_t)(sum >> shift);
             }
-            current_state = Process;
-          } else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR ||
-                    (HAL_GetTick() - wait_start_tick > 100)) {
-            DCMI_ForceReset();
-            current_state = Coarse_Init;
+          } else {
+            memcpy(adc_buf, raw_adc_buf, 1024 * sizeof(uint16_t));
           }
-          break;
-      case Process:
+          current_state = Process;
+        } else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR ||
+                  (HAL_GetTick() - wait_start_tick > 100)) {
+          DCMI_ForceReset();
+          current_state = Coarse_Init;
+        }
+        break;
+        case Process:
         // 1. 精测信号参数计算
         measure_signal(adc_buf, 1024, g_active_fs);
         if (g_active_fs > FS_LOW_FINE && current_params.freq < 10.0f) {
@@ -278,8 +330,10 @@ int main(void)
             uint16_t v_pp = v_max - v_min;
             uint16_t trig_idx = 0;
 
-            uint16_t wave_span = (uint16_t)(320.0f * sample_step);
-            uint16_t search_limit = (wave_span < 1000) ? (1024 - wave_span) : 24;
+            // 按 1.3 倍单周期设置搜索上限：保证大时基下也能捕获上升沿，且留足右侧缓冲
+            uint16_t period_pts = (current_params.freq > 10.0f) ? (uint16_t)(g_active_fs / current_params.freq) : 125;
+            uint16_t search_limit = (uint16_t)(period_pts * 1.3f) + 10;
+            if (search_limit > 400) search_limit = 400;
 
             #define NOISE_GATE 40
             if (v_pp > NOISE_GATE) {
@@ -327,8 +381,13 @@ int main(void)
         break;
     }
   }
-  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  
+  /* USER CODE END 3 */
 }
+
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -471,7 +530,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

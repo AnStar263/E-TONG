@@ -35,8 +35,8 @@
 volatile uint16_t g_v_scale = 1;
 static int16_t g_y_offset = 0;
 
-#define TB_TABLE_SIZE         7
-#define TB_MID_INDEX          3
+#define TB_TABLE_SIZE         11
+#define TB_MID_INDEX          6
 
 volatile int16_t g_x_offset = 0;
 #define X_SHIFT_STEP          16
@@ -57,21 +57,26 @@ static MeasureParams_t last_params = {
 };
 
 static const TimeBase_t g_tb_table[TB_TABLE_SIZE] = {
-    {   1.0e-6f, " 1us" },
-    {   2.0e-6f, " 2us" },
-    {   5.0e-6f, " 5us" },
-    {  10.0e-6f, "10us" },
-    {  20.0e-6f, "20us" },
-    {  50.0e-6f, "50us" },
-    { 100.0e-6f, "100us"}
+    {   1.0e-6f, "  1us" }, 
+    {   2.0e-6f, "  2us" }, 
+    {   5.0e-6f, "  5us" },
+    {  10.0e-6f, " 10us" }, 
+    {  20.0e-6f, " 20us" }, 
+    {  50.0e-6f, " 50us" },
+    { 100.0e-6f, "100us" }, 
+    { 200.0e-6f, "200us" }, 
+    { 500.0e-6f, "500us" },
+    {   1.0e-3f, "  1ms" }, 
+    {   2.0e-3f, "  2ms" }
 };
 
-// 对应 7 档时基的屏幕周期倍数（中心第 3 档严格对应 1.0 单周期）
+// 对应 11 档时基的屏幕周期倍数（中心第 3 档严格对应 1.0 单周期）
 static const float g_cycle_mult[TB_TABLE_SIZE] = {
-    0.25f, 0.50f, 0.75f, 1.00f, 1.50f, 2.00f, 3.00f
+    0.20f, 0.30f, 0.40f, 0.50f, 0.75f, 0.90f,
+    1.00f, 1.50f, 2.00f, 2.50f, 5.00f
 };
 
-static uint8_t s_current_tb_idx = TB_MID_INDEX;
+volatile uint8_t s_current_tb_idx = TB_MID_INDEX;
 static uint8_t s_auto_tb_enable = 1;
 
 void ui_update_topbar_volt_div(void)
@@ -103,7 +108,7 @@ uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step)
         float period_samples = fs / freq;
         float step = (period_samples * g_cycle_mult[s_current_tb_idx]) / 320.0f;
         if (step < 0.02f) step = 0.02f;
-        if (step > 2.5f)  step = 2.5f;
+        if (step > 4.5f)  step = 4.5f;
         *out_step = step;
     } else {
         *out_step = 1.0f;
@@ -111,7 +116,7 @@ uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step)
 
     // 计算当前对应的等效每格时基索引用于顶栏显示
     if (s_auto_tb_enable && freq > 10.0f) {
-        float target_div = 1.0f / (freq * 10.0f); // 整屏 10 格显示 1 周期
+        float target_div = (32.0f * (*out_step)) / fs; // 整屏320点(10格)对应的每格时间
         int best_idx = 0;
         float min_err = 1e9f;
         for (int i = 0; i < TB_TABLE_SIZE; i++) {
@@ -199,7 +204,7 @@ static void draw_vertical_line(uint16_t x, uint8_t y1, uint8_t y2, uint16_t colo
 {
     uint8_t start = (y1 < y2) ? y1 : y2;
     uint8_t end   = (y1 < y2) ? y2 : y1;
-    st7789_fill_rect(x, start, x, end, color); // 单次设置窗口批量发送，替代逐点写
+    st7789_fill_rect(x, start, x, end, color);
 }
 
 static void clear_vertical_line(uint16_t x, uint8_t y1, uint8_t y2)
@@ -243,23 +248,34 @@ void screen_clear_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 {
     if (current_page != PAGE_WAVE) return;
+    uint8_t has_last = (last_frame[0] >= WAVE_AREA_TOP);
 
-    screen_clear_frame(last_frame, draw_frame, len);
-
-    screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
-    last_frame[0] = draw_frame[0];
-
-    for (uint16_t i = 1; i < len; i++) {
-        int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
-        if (diff > 1 || diff < -1) {
-            draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
-        } else {
-            screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+    for (uint16_t i = 0; i < len; i++) {
+        if (has_last) {
+            if (i == 0) {
+                if (last_frame[0] != draw_frame[0])
+                    screen_draw_point(0, last_frame[0], get_grid_color(0, last_frame[0]));
+            } else {
+                int16_t ldiff = (int16_t)last_frame[i] - (int16_t)last_frame[i - 1];
+                if (ldiff > 1 || ldiff < -1)
+                    clear_vertical_line(i, last_frame[i - 1], last_frame[i]);
+                else if (last_frame[i] != draw_frame[i])
+                    screen_draw_point(i, last_frame[i], get_grid_color(i, last_frame[i]));
+            }
         }
-        last_frame[i] = draw_frame[i];
-    }
-}
 
+        if (i == 0) {
+            screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
+        } else {
+            int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
+            if (diff > 1 || diff < -1)
+                draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
+            else
+                screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+        }
+    }
+    memcpy(last_frame, draw_frame, len);
+}
 /**
  * @brief 参数页底部简易波形差分渲染
  */
