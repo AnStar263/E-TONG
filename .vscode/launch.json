@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug STM32F407",
+        "cwd": "${workspaceFolder}/chipC_407",
+        "executable": "${workspaceFolder}/chipC_407/build/Debug/chipC_407.elf",
+        "request": "launch",
+        "type": "cortex-debug",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "device": "STM32F407VE",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32f4x.cfg"
+        ]
+      }
+    ]
+  }

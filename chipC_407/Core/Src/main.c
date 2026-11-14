@@ -4,16 +4,6 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
@@ -32,32 +22,20 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef enum {
-  Init = 0,
-  Measure,
+  Coarse_Init = 0,
+  Coarse_Wait,
+  Fine_Init,
+  Fine_Wait,
   Process
 } State;
 /* USER CODE END PTD */
 
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
 /* Private variables ---------------------------------------------------------*/
 DAC_HandleTypeDef hdac;
-
 DCMI_HandleTypeDef hdcmi;
 DMA_HandleTypeDef hdma_dcmi;
-
 SPI_HandleTypeDef hspi1;
-
 TIM_HandleTypeDef htim1;
-
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -65,16 +43,18 @@ static uint8_t g_last_wave[320] = {0};
 static uint8_t g_curr_wave[320] = {0};
 __attribute__((aligned(4))) uint16_t adc_buf[1024];
 uint8_t dma_full_flag = 0;
-uint8_t dma_start_flag = 0;
+__attribute__((aligned(4))) uint16_t raw_adc_buf[4096];
+static uint8_t g_decim_factor = 1;
 volatile uint8_t rx_data = '0';
-volatile uint16_t y_scale = 1; 
-State current_state = Init;
+State current_state = Coarse_Init;
+static float g_active_fs = FS_COARSE;
+
 extern volatile PAGE current_page;
 extern volatile PAGE next_page_req;
 extern volatile uint8_t page_change_flag;
 extern volatile uint8_t wave_div_change_flag;
 extern volatile uint16_t g_v_scale;
-extern MeasureParams_t current_params;
+extern volatile MeasureParams_t current_params;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -86,43 +66,73 @@ static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_DAC_Init(void);
-/* USER CODE BEGIN PFP */
 
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/* USER CODE END 0 */
+static void DCMI_ForceReset(void)
+{
+    __HAL_DCMI_DISABLE(&hdcmi);
+    hdcmi.Instance->CR &= ~DCMI_CR_CAPTURE;
+    HAL_DMA_Abort(&hdma_dcmi);
+    hdcmi.State = HAL_DCMI_STATE_READY;
+    hdcmi.ErrorCode = HAL_DCMI_ERROR_NONE;
+    __HAL_DCMI_CLEAR_FLAG(&hdcmi, DCMI_FLAG_OVFRI | DCMI_FLAG_ERRRI | DCMI_FLAG_FRAMERI);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+}
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+ * @brief 动态修改 TIM1 输出采样率 (TIM1 时钟为 168MHz)，返回实际采样率
+ */
+static float TIM1_SetSampleRate(float target_fs)
+{
+    if (target_fs > 21000000.0f) target_fs = 21000000.0f; // 上限 21MHz (ARR=7)
+    if (target_fs < 20000.0f)    target_fs = 20000.0f;    // 下限 20kHz
+
+    uint32_t total_div = (uint32_t)(168000000.0f / target_fs + 0.5f);
+    if (total_div < 8) total_div = 8;
+
+    uint32_t psc = (total_div - 1) / 65536;
+    uint32_t arr = (total_div / (psc + 1)) - 1;
+    if (arr < 1) arr = 1;
+
+    __HAL_TIM_SET_PRESCALER(&htim1, psc);
+    __HAL_TIM_SET_AUTORELOAD(&htim1, arr);
+    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, (arr + 1) >> 1);
+    htim1.Instance->EGR = TIM_EGR_UG; // 立即更新分频与重装载寄存器
+
+    return 168000000.0f / ((float)(psc + 1) * (float)(arr + 1));
+}
+
+static void delay_us_systick(uint32_t us)
+{
+    uint32_t ticks = us * (SystemCoreClock / 1000000U);
+    uint32_t told = SysTick->VAL;
+    uint32_t tnow, tcnt = 0;
+    uint32_t reload = SysTick->LOAD + 1U;
+    while (tcnt < ticks) {
+        tnow = SysTick->VAL;
+        if (tnow != told) {
+            tcnt += (tnow < told) ? (told - tnow) : (reload - tnow + told);
+            told = tnow;
+        }
+    }
+}
+
+static void DCMI_StartCapture(uint16_t word_len)
+{
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+    HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)raw_adc_buf, word_len);
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+    delay_us_systick(15);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+}/* USER CODE END 0 */
+
 int main(void)
 {
-
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
@@ -130,98 +140,136 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DCMI_Init();
   MX_DAC_Init();
+
   /* USER CODE BEGIN 2 */
   st7789_init();
   page_console();
-  
+
   console_print("TEST#1");
   st7789_display_on();
-  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+  HAL_UART_Receive_IT(&huart1, (uint8_t *)&rx_data, 1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  
   /* USER CODE END 2 */
 
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   static uint32_t last_frame_tick = 0;
-
-  while(1) {
-    /* main.c 中的切页分支 */
+  static uint32_t last_ble_tick = 0;
+  static uint32_t wait_start_tick = 0;
+  while (1) {
+    /* 1. 页面切换处理 */
     if (page_change_flag) {
-        page_change_flag = 0;
-    
-        switch (next_page_req) {
-          case PAGE_CONSOLE:
-            page_console();
-            break;
-    
-          case PAGE_WAVE:
-            // 1. 强制终止并复位 DCMI，清除一切后台溢出悬挂标志
-            HAL_DCMI_Stop(&hdcmi);
-            __HAL_DCMI_CLEAR_FLAG(&hdcmi, DCMI_FLAG_OVFRI | DCMI_FLAG_ERRRI | DCMI_FLAG_FRAMERI);
-            current_state = Init;
-    
-            // 2. 正常刷屏与清空历史帧
-            memset(g_last_wave, 0, sizeof(g_last_wave));
-            page_wave();
-            break;
-    
-          case PAGE_PARAM:        
-            page_param();
-            break;
-        } 
-    }
+      page_change_flag = 0;
+
+      // 直接关闭 DCMI 并强制中止 DMA，避免 HAL_DCMI_Stop 1000ms 超时锁死 DMA
+      __HAL_DCMI_DISABLE(&hdcmi);
+      hdcmi.Instance->CR &= ~DCMI_CR_CAPTURE;
+      HAL_DMA_Abort(&hdma_dcmi);
+      hdcmi.State = HAL_DCMI_STATE_READY;
+      __HAL_DCMI_CLEAR_FLAG(&hdcmi, DCMI_FLAG_OVFRI | DCMI_FLAG_ERRRI | DCMI_FLAG_FRAMERI);
+
+      current_state = Coarse_Init;
+      memset(g_last_wave, 0, sizeof(g_last_wave));
+
+      switch (next_page_req) {
+        case PAGE_CONSOLE: page_console(); break;
+        case PAGE_WAVE:    page_wave();    break;
+        case PAGE_PARAM:   page_param();   break;
+      }
+  }
+
     if (wave_div_change_flag && current_page == PAGE_WAVE) {
-      // 1. 刷新红色倍率显示
       char strtemp[4] = {'\0'};
-      snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
-      st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK); 
+      snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale);
+      st7789_fill_rect(280, 1, 319, 23, ST7789_COLOR_BLACK);
       st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
-
-      // 2. 联动更新每格电压分辨率
       ui_update_topbar_volt_div();
-
       wave_div_change_flag = 0;
     }
-    /* 2. 状态机调度 */
+
+    /* 2. 粗测 -> 精测状态机调度 */
     switch (current_state) {
-      case Init:
-        if (HAL_GetTick() - last_frame_tick >= 33) {
-          last_frame_tick = HAL_GetTick();
+      case Coarse_Init:
+      if (HAL_GetTick() - last_frame_tick >= 33) {
+        last_frame_tick = HAL_GetTick();
+        g_decim_factor = 1;
+        g_active_fs = TIM1_SetSampleRate(1000000.0f);
+        DCMI_StartCapture(512); // 1024 点
+        wait_start_tick = HAL_GetTick();
+        current_state = Coarse_Wait;
+      }
+      break;
 
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-          HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)adc_buf, 512);
-
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-          for(volatile int i = 0; i < 2000; i++); 
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-
-          current_state = Measure;
-        }
-        break;
-
-        case Measure:
-        // 纯硬件就绪轮询，不包含任何软件/硬件看门狗及超时机制
+      case Coarse_Wait:
         if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-          current_state = Process;
-        }
-        else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR) {
-          HAL_DCMI_Stop(&hdcmi);
-          HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-          current_state = Init;
+          memcpy(adc_buf, raw_adc_buf, 1024 * sizeof(uint16_t));
+          measure_signal(adc_buf, 1024, g_active_fs);
+          current_state = Fine_Init;
+        } else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR ||
+                  (HAL_GetTick() - wait_start_tick > 100)) {
+          DCMI_ForceReset();
+          current_state = Coarse_Init;
         }
         break;
 
-      case Process:
-        if (current_page == PAGE_WAVE && !page_change_flag) {
-            // 1. 信号测频与自动时基计算
-            measure_signal(adc_buf, 1024, FS_INIT);
-            float sample_step = 1.0f;
-            uint8_t tb_idx = ui_calc_auto_timebase(current_params.freq, FS_INIT, &sample_step);
-            ui_update_topbar_timebase(tb_idx, 0);
+      case Fine_Init:
+        {
+          if (current_params.freq >= 5500.0f) {
+            // 高频：1x 直采，硬件时钟 >= 1 MHz
+            float target_fs = current_params.freq * 128.0f;
+            if (target_fs < 1000000.0f) target_fs = 1000000.0f;
+            g_decim_factor = 1;
+            g_active_fs = TIM1_SetSampleRate(target_fs);
+            DCMI_StartCapture(512);
+          } else {
+            // 低频（如 1kHz）：硬件保持 1 MHz 采 4096 点，4x 抽取等效 250 kHz
+            float hw_fs = TIM1_SetSampleRate(1000000.0f);
+            g_decim_factor = 4;
+            g_active_fs = hw_fs / 4.0f;
+            DCMI_StartCapture(2048);
+          }
+          wait_start_tick = HAL_GetTick();
+          current_state = Fine_Wait;
+        }
+        break;
 
-            // 2. 统计当前帧极值
+        case Fine_Wait:
+          if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_READY) {
+            if (g_decim_factor == 4) {
+              for (uint16_t i = 0; i < 1024; i++) {
+                uint32_t idx = i * 4;
+                adc_buf[i] = (raw_adc_buf[idx] + raw_adc_buf[idx + 1] +
+                              raw_adc_buf[idx + 2] + raw_adc_buf[idx + 3]) >> 2;
+              }
+            } else {
+              memcpy(adc_buf, raw_adc_buf, 1024 * sizeof(uint16_t));
+            }
+            current_state = Process;
+          } else if (HAL_DCMI_GetState(&hdcmi) == HAL_DCMI_STATE_ERROR ||
+                    (HAL_GetTick() - wait_start_tick > 100)) {
+            DCMI_ForceReset();
+            current_state = Coarse_Init;
+          }
+          break;
+      case Process:
+        // 1. 精测信号参数计算
+        measure_signal(adc_buf, 1024, g_active_fs);
+        if (g_active_fs > FS_LOW_FINE && current_params.freq < 10.0f) {
+          current_state = Coarse_Init;
+          break;
+        }
+
+        // 2. 周期性向上位机回传数据 (每 200ms 发送一帧)
+        if (HAL_GetTick() - last_ble_tick >= 200) {
+          last_ble_tick = HAL_GetTick();
+          BLE_SendParams(&huart1, &current_params);
+        }
+
+        // 3. 波形页与参数页动态渲染
+        if ((current_page == PAGE_WAVE || current_page == PAGE_PARAM) && !page_change_flag) {
+            float sample_step = 1.0f;
+            uint8_t tb_idx = ui_calc_auto_timebase(current_params.freq, g_active_fs, &sample_step);
+
+            // 统计极值并执行施密特触发同步
             uint16_t v_min = 4095, v_max = 0;
             for (uint16_t i = 0; i < 1024; i++) {
                 if (adc_buf[i] < v_min) v_min = adc_buf[i];
@@ -230,11 +278,10 @@ int main(void)
             uint16_t v_pp = v_max - v_min;
             uint16_t trig_idx = 0;
 
-            // 3. 施密特动态触发沿检索
             uint16_t wave_span = (uint16_t)(320.0f * sample_step);
             uint16_t search_limit = (wave_span < 1000) ? (1024 - wave_span) : 24;
 
-            #define NOISE_GATE 40 
+            #define NOISE_GATE 40
             if (v_pp > NOISE_GATE) {
                 uint16_t v_mid  = (v_min + v_max) >> 1;
                 uint16_t hys    = v_pp >> 4;
@@ -254,29 +301,34 @@ int main(void)
                 }
             }
 
-            // 4. 按步进抽样提取并绘制
-            for (int i = 0; i < 320; i++) {
-              int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
-              if (sample_pos < 0)    sample_pos = 0;
-              if (sample_pos > 1023) sample_pos = 1023;
-
-              g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+            if (current_page == PAGE_WAVE) {
+                ui_update_topbar_timebase(tb_idx, 0);
+                for (int i = 0; i < 320; i++) {
+                    int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
+                    if (sample_pos < 0)    sample_pos = 0;
+                    if (sample_pos > 1023) sample_pos = 1023;
+                    g_curr_wave[i] = wave_adc_to_screen_y(adc_buf[sample_pos]);
+                }
+                screen_draw_frame(g_last_wave, g_curr_wave, 320);
             }
-            screen_draw_frame(g_last_wave, g_curr_wave, 320);
+            else if (current_page == PAGE_PARAM) {
+                param_refresh_all();
+                for (int i = 0; i < 320; i++) {
+                    int32_t sample_pos = (int32_t)trig_idx + (int32_t)((i + g_x_offset) * sample_step);
+                    if (sample_pos < 0)    sample_pos = 0;
+                    if (sample_pos > 1023) sample_pos = 1023;
+                    g_curr_wave[i] = wave_adc_to_param_y(adc_buf[sample_pos]);
+                }
+                param_draw_frame(g_last_wave, g_curr_wave, 320);
+            }
         }
 
-        // 核心修复：绘制完成后切回 Init 开启下一轮采样
-        current_state = Init;
+        current_state = Coarse_Init;
         break;
-      }
-
+    }
   }
   /* USER CODE END WHILE */
-  /* USER CODE BEGIN 3 */
-
-  /* USER CODE END 3 */
 }
-
 /**
   * @brief System Clock Configuration
   * @retval None

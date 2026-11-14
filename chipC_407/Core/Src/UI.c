@@ -7,45 +7,47 @@
 
 /* --- 控制台参数配置 --- */
 #define CONSOLE_FONT          ST7789_FONT_16
-#define CONSOLE_FONT_W        8       // 12号字宽度为 6 像素 (12 / 2)
-#define CONSOLE_FONT_H        16      // 12号字高度为 12 像素
-#define CONSOLE_START_Y       28      // 内容显示起始Y坐标（避开标题与顶部分割线）
+#define CONSOLE_FONT_W        8
+#define CONSOLE_FONT_H        16
+#define CONSOLE_START_Y       28
 #define CONSOLE_COLOR_BG      ST7789_COLOR_BLACK
 #define CONSOLE_COLOR_TXT     ST7789_COLOR_WHITE
 
-// 计算当前屏幕区域下最大支持的行数与每行字符数 (320x240)
-#define CONSOLE_MAX_COLS      (320 / CONSOLE_FONT_W)                          // 约 53 字符/行
-#define CONSOLE_MAX_LINES     ((240 - CONSOLE_START_Y) / CONSOLE_FONT_H)      // 17 行
+#define CONSOLE_MAX_COLS      (320 / CONSOLE_FONT_W)
+#define CONSOLE_MAX_LINES     ((240 - CONSOLE_START_Y) / CONSOLE_FONT_H)
 
 /* --- 基础界面宏定义 (320x240) --- */
-#define UI_HEADER_H           24                          // 顶栏高度
-#define UI_BODY_START_Y       25                          // 内容区域起始 Y 坐标
-#define UI_BODY_END_Y         239                         // 内容区域结束 Y 坐标
+#define UI_HEADER_H           24
+#define UI_BODY_START_Y       25
+#define UI_BODY_END_Y         239
 
-// 垂直显示范围限制
-#define WAVE_AREA_TOP       25
-#define WAVE_AREA_BOTTOM    239
-#define WAVE_CENTER_Y       132   // 中心零点位置
-volatile uint16_t g_v_scale = 1;    // 垂直增益
-static int16_t g_y_offset = 0;    // 垂直偏移量
+// 波形页垂直显示范围
+#define WAVE_AREA_TOP         25
+#define WAVE_AREA_BOTTOM      239
+#define WAVE_CENTER_Y         132
 
-#define TB_TABLE_SIZE   7
-#define TB_MID_INDEX    3   // 中间基准档：10us
+// 参数页底部简易波形显示范围 (Y: 146 ~ 238, 中心 Y = 192)
+#define PARAM_WAVE_DIV_Y      144
+#define PARAM_WAVE_TOP        146
+#define PARAM_WAVE_BOTTOM     238
+#define PARAM_WAVE_CENTER_Y   192
 
-volatile int16_t g_x_offset = 0; // 水平偏移量 (像素单位)
-#define X_SHIFT_STEP  16          // 每次平移 16 像素
-#define X_SHIFT_MAX   320         // 最大平移范围 ±320 像素
+volatile uint16_t g_v_scale = 1;
+static int16_t g_y_offset = 0;
 
-/* --- 参数页显示缓存 --- */
+#define TB_TABLE_SIZE         7
+#define TB_MID_INDEX          3
+
+volatile int16_t g_x_offset = 0;
+#define X_SHIFT_STEP          16
+#define X_SHIFT_MAX           320
+
 volatile MeasureParams_t current_params = {0};
-
 volatile PAGE current_page = PAGE_CONSOLE;
 
-// 文本行缓冲区
 static char console_buffer[CONSOLE_MAX_LINES][CONSOLE_MAX_COLS + 1];
 static uint8_t current_line = 0;
 
-// 缓存初始化
 static MeasureParams_t last_params = {
     .freq = -1.0f,
     .vavg = -999.0f,
@@ -53,28 +55,25 @@ static MeasureParams_t last_params = {
     .vmax = -999.0f,
     .vmin = -999.0f
 };
-/* ================= 自动时基档位表 (覆盖 4kHz ~ 1MHz 测频范围) ================= */
-
 
 static const TimeBase_t g_tb_table[TB_TABLE_SIZE] = {
-    {   1.0e-6f, " 1us" }, // 0: 最放大
-    {   2.0e-6f, " 2us" }, // 1
-    {   5.0e-6f, " 5us" }, // 2
-    {  10.0e-6f, "10us" }, // 3: 中心默认档
-    {  20.0e-6f, "20us" }, // 4
-    {  50.0e-6f, "50us" }, // 5
-    { 100.0e-6f, "100us"}  // 6: 最缩小
+    {   1.0e-6f, " 1us" },
+    {   2.0e-6f, " 2us" },
+    {   5.0e-6f, " 5us" },
+    {  10.0e-6f, "10us" },
+    {  20.0e-6f, "20us" },
+    {  50.0e-6f, "50us" },
+    { 100.0e-6f, "100us"}
 };
 
-#define TB_TABLE_SIZE (sizeof(g_tb_table) / sizeof(g_tb_table[0]))
+// 对应 7 档时基的屏幕周期倍数（中心第 3 档严格对应 1.0 单周期）
+static const float g_cycle_mult[TB_TABLE_SIZE] = {
+    0.25f, 0.50f, 0.75f, 1.00f, 1.50f, 2.00f, 3.00f
+};
 
-static uint8_t s_current_tb_idx = TB_MID_INDEX; // 默认 10us
-static uint8_t s_auto_tb_enable = 1;            // 默认开启自适应
+static uint8_t s_current_tb_idx = TB_MID_INDEX;
+static uint8_t s_auto_tb_enable = 1;
 
-
-/**
- * @brief 顶栏垂直电压分辨率刷新 (X: 175~255, Y: 4)
- */
 void ui_update_topbar_volt_div(void)
 {
     char buf[16];
@@ -90,46 +89,44 @@ void ui_update_topbar_volt_div(void)
     st7789_write_string(175, 4, buf, ST7789_COLOR_YELLOW, ST7789_FONT_16);
 }
 
-
 /**
- * @brief 自适应时基换算
- * @param freq     信号频率 (Hz)
- * @param fs       ADC采样率 (2.1MHz)
- * @param out_step 输出每像素对应的 ADC 抽样步进点数
- * @return 匹配的最佳档位索引
+ * @brief 单周期锁定与手动缩放步进换算
  */
 uint8_t ui_calc_auto_timebase(float freq, float fs, float *out_step)
 {
-    // 开启自适应时自动匹配；若被手动按键打断，则直接使用当前手动选定的档位
     if (s_auto_tb_enable) {
-        if (freq < 100.0f) {
-            s_current_tb_idx = TB_MID_INDEX;
-        } else {
-            float target_div = 0.25f / freq;
-            int best_idx = 0;
-            float min_err = 1e9f;
-            for (int i = 0; i < TB_TABLE_SIZE; i++) {
-                float err = fabsf(g_tb_table[i].time_div - target_div);
-                if (err < min_err) {
-                    min_err = err;
-                    best_idx = i;
-                }
-            }
-            s_current_tb_idx = (uint8_t)best_idx;
-        }
+        s_current_tb_idx = TB_MID_INDEX; // 自适应模式下锁定 1.0 单周期档位
     }
 
-    // 抽样步进点数换算
-    float step = (g_tb_table[s_current_tb_idx].time_div / 32.0f) * fs;
-    if (step < 0.05f) step = 0.05f;
-    if (step > 3.0f)  step = 3.0f;
-    *out_step = step;
+    if (freq > 10.0f) {
+        // 单周期采样点数 = fs / freq，映射到 320 像素宽度并乘以当前缩放系数
+        float period_samples = fs / freq;
+        float step = (period_samples * g_cycle_mult[s_current_tb_idx]) / 320.0f;
+        if (step < 0.02f) step = 0.02f;
+        if (step > 2.5f)  step = 2.5f;
+        *out_step = step;
+    } else {
+        *out_step = 1.0f;
+    }
+
+    // 计算当前对应的等效每格时基索引用于顶栏显示
+    if (s_auto_tb_enable && freq > 10.0f) {
+        float target_div = 1.0f / (freq * 10.0f); // 整屏 10 格显示 1 周期
+        int best_idx = 0;
+        float min_err = 1e9f;
+        for (int i = 0; i < TB_TABLE_SIZE; i++) {
+            float err = fabsf(g_tb_table[i].time_div - target_div);
+            if (err < min_err) {
+                min_err = err;
+                best_idx = i;
+            }
+        }
+        return (uint8_t)best_idx;
+    }
 
     return s_current_tb_idx;
 }
-/**
- * @brief 顶栏时基绘制 (位于 X:90 ~ 180, Y:4)
- */
+
 void ui_update_topbar_timebase(uint8_t tb_idx, uint8_t force)
 {
     static uint8_t s_last_rendered_tb = 0xFF;
@@ -139,23 +136,15 @@ void ui_update_topbar_timebase(uint8_t tb_idx, uint8_t force)
     char buf[16];
     snprintf(buf, sizeof(buf), "TB:%s", g_tb_table[tb_idx].label);
 
-    // 局部黑色擦除后绘制黄色 16 号字，避免全屏闪烁
     st7789_fill_rect(90, 1, 175, 23, ST7789_COLOR_BLACK);
     st7789_write_string(90, 4, buf, ST7789_COLOR_YELLOW, ST7789_FONT_16);
 }
-/**
- * @brief 将原始 ADC 采样值 (0~4095) 转换为屏幕 Y 坐标 (25~239)
- */
+
 uint8_t wave_adc_to_screen_y(uint16_t adc_val)
 {
-    // 1. 将 0~4095 归一化到以中心点 (2048) 为基准的相对变化量 (-2048 ~ +2047)
     int32_t delta = (int32_t)adc_val - 2048;
-
-    // 2. 映射到屏幕高度：2048 对应约 100 像素振幅 (乘以缩放系数)
-    // 注意：因屏幕 Y 轴向下递增，电压增大时 Y 坐标应减小
     int32_t y = WAVE_CENTER_Y - (int32_t)(delta * g_v_scale * 100 / 2048) + g_y_offset;
 
-    // 3. 边界硬截断，防止波形溢出侵入顶栏表头 (Y < 25) 或超出屏底
     if (y < WAVE_AREA_TOP)    y = WAVE_AREA_TOP;
     if (y > WAVE_AREA_BOTTOM) y = WAVE_AREA_BOTTOM;
 
@@ -163,49 +152,56 @@ uint8_t wave_adc_to_screen_y(uint16_t adc_val)
 }
 
 /**
- * @brief 底层单点绘制封装
+ * @brief 将 ADC 值映射为参数页底部简易波形 Y 坐标 (146 ~ 238)
  */
+uint8_t wave_adc_to_param_y(uint16_t adc_val)
+{
+    int32_t delta = (int32_t)adc_val - 2048;
+    int32_t y = PARAM_WAVE_CENTER_Y - (int32_t)(delta * g_v_scale * 42 / 2048);
+
+    if (y < PARAM_WAVE_TOP)    y = PARAM_WAVE_TOP;
+    if (y > PARAM_WAVE_BOTTOM) y = PARAM_WAVE_BOTTOM;
+
+    return (uint8_t)y;
+}
+
 void screen_draw_point(uint16_t x, uint16_t y, uint16_t color)
 {
     st7789_draw_point(x, y, color);
 }
 
-/**
- * @brief 判断坐标底色：与初始绘制规则严格 1:1 对齐
- */
 static inline uint16_t get_grid_color(uint16_t x, uint16_t y)
 {
-    // 1. 中心横轴 (Y = 132，每 4 像素一点)
     if (y == WAVE_CENTER_Y && (x % 4 == 0)) {
         return ST7789_COLOR_WHITE;
     }
-
-    // 2. 中心纵轴 (X = 160，每 6 像素一点，一大格 30 像素正好 5 等分)
     if (x == 160 && (y >= 30 && y <= 234) && (y % 6 == 0)) {
         return ST7789_COLOR_WHITE;
     }
-
-    // 3. 水平辅助蓝线 (Y = 42, 72, 102, 162, 192, 222，每 16 像素一点)
     if ((y >= 42 && y <= 222) && ((y - 42) % 30 == 0) && (x % 16 == 0)) {
         return ST7789_COLOR_BLUE;
     }
-
     return ST7789_COLOR_BLACK;
-}/**
- * @brief 绘制垂直实线段（用于连接相邻两列跳变过大的波形点）
- */
+}
+
+static inline uint16_t get_param_grid_color(uint16_t x, uint16_t y)
+{
+    if (y == PARAM_WAVE_CENTER_Y && (x % 4 == 0)) {
+        return ST7789_COLOR_WHITE;
+    }
+    if (x == 160 && (y >= PARAM_WAVE_TOP && y <= PARAM_WAVE_BOTTOM) && (y % 6 == 0)) {
+        return ST7789_COLOR_WHITE;
+    }
+    return ST7789_COLOR_BLACK;
+}
+
 static void draw_vertical_line(uint16_t x, uint8_t y1, uint8_t y2, uint16_t color)
 {
     uint8_t start = (y1 < y2) ? y1 : y2;
     uint8_t end   = (y1 < y2) ? y2 : y1;
-    for (uint8_t y = start; y <= end; y++) {
-        screen_draw_point(x, y, color);
-    }
+    st7789_fill_rect(x, start, x, end, color); // 单次设置窗口批量发送，替代逐点写
 }
 
-/**
- * @brief 垂直线段差分清除（清除上一帧连线并恢复被覆盖的网格像素）
- */
 static void clear_vertical_line(uint16_t x, uint8_t y1, uint8_t y2)
 {
     uint8_t start = (y1 < y2) ? y1 : y2;
@@ -215,29 +211,28 @@ static void clear_vertical_line(uint16_t x, uint8_t y1, uint8_t y2)
     }
 }
 
-/**
- * @brief 差分擦除：仅清除上一帧绘制的点和跳变沿连线，并自动还原网格
- */
+static void clear_param_vertical_line(uint16_t x, uint8_t y1, uint8_t y2)
+{
+    uint8_t start = (y1 < y2) ? y1 : y2;
+    uint8_t end   = (y1 < y2) ? y2 : y1;
+    for (uint8_t y = start; y <= end; y++) {
+        screen_draw_point(x, y, get_param_grid_color(x, y));
+    }
+}
+
 void screen_clear_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 {
-    // 未初始化的旧帧缓存（如切页刚清零时）不进行擦除，防止破坏顶栏
     if (last_frame[0] < WAVE_AREA_TOP) return;
 
-    // 1. 擦除第 0 列起始点
     if (last_frame[0] != draw_frame[0]) {
         screen_draw_point(0, last_frame[0], get_grid_color(0, last_frame[0]));
     }
 
-    // 2. 擦除后续各列
     for (uint16_t i = 1; i < len; i++) {
         int16_t last_diff = (int16_t)last_frame[i] - (int16_t)last_frame[i - 1];
-
-        // 若上一帧在此处绘制了垂直跳变沿，整条线段擦除并还原背景
         if (last_diff > 1 || last_diff < -1) {
             clear_vertical_line(i, last_frame[i - 1], last_frame[i]);
-        } 
-        else {
-            // 普通水平/缓变点：仅当坐标改变时擦除，节省 SPI 开销
+        } else {
             if (last_frame[i] != draw_frame[i]) {
                 screen_draw_point(i, last_frame[i], get_grid_color(i, last_frame[i]));
             }
@@ -245,64 +240,73 @@ void screen_clear_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
     }
 }
 
-/**
- * @brief 30 FPS 实时波形渲染主函数
- * @param last_frame 上一帧屏幕 Y 坐标数组 (长度 320)
- * @param draw_frame 当前待绘制的屏幕 Y 坐标数组 (长度 320)
- * @param len 绘制点数 (固定为 320)
- */
 void screen_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
 {
-    // 页面安全锁：若当前不在波形页，立即退出，防止跨页破坏画面
     if (current_page != PAGE_WAVE) return;
 
-    // 1. 擦除上一帧波形与跳变线
     screen_clear_frame(last_frame, draw_frame, len);
 
-    // 2. 绘制第 0 列起始点
     screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
     last_frame[0] = draw_frame[0];
 
-    // 3. 绘制当前帧的新波形（相邻点差值 > 1 像素时自动补齐垂直线）
     for (uint16_t i = 1; i < len; i++) {
         int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
-
         if (diff > 1 || diff < -1) {
-            // 沿陡峭边缘垂直拉线，形成完整方波
             draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
         } else {
             screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
         }
-
-        // 缓存当前点作为下一帧擦除的依据
         last_frame[i] = draw_frame[i];
     }
 }
+
 /**
- * @brief 刷新整个控制台内容区域
+ * @brief 参数页底部简易波形差分渲染
  */
+void param_draw_frame(uint8_t* last_frame, uint8_t* draw_frame, uint16_t len)
+{
+    if (current_page != PAGE_PARAM) return;
+
+    if (last_frame[0] >= PARAM_WAVE_TOP) {
+        if (last_frame[0] != draw_frame[0]) {
+            screen_draw_point(0, last_frame[0], get_param_grid_color(0, last_frame[0]));
+        }
+        for (uint16_t i = 1; i < len; i++) {
+            int16_t last_diff = (int16_t)last_frame[i] - (int16_t)last_frame[i - 1];
+            if (last_diff > 1 || last_diff < -1) {
+                clear_param_vertical_line(i, last_frame[i - 1], last_frame[i]);
+            } else if (last_frame[i] != draw_frame[i]) {
+                screen_draw_point(i, last_frame[i], get_param_grid_color(i, last_frame[i]));
+            }
+        }
+    }
+
+    screen_draw_point(0, draw_frame[0], ST7789_COLOR_YELLOW);
+    last_frame[0] = draw_frame[0];
+
+    for (uint16_t i = 1; i < len; i++) {
+        int16_t diff = (int16_t)draw_frame[i] - (int16_t)draw_frame[i - 1];
+        if (diff > 1 || diff < -1) {
+            draw_vertical_line(i, draw_frame[i - 1], draw_frame[i], ST7789_COLOR_YELLOW);
+        } else {
+            screen_draw_point(i, draw_frame[i], ST7789_COLOR_YELLOW);
+        }
+        last_frame[i] = draw_frame[i];
+    }
+}
+
 static void console_refresh_all(void)
 {
+    st7789_fill_rect(0, CONSOLE_START_Y, 319, 239, CONSOLE_COLOR_BG); // 整块清屏替代逐个画空格
     for (uint8_t i = 0; i < CONSOLE_MAX_LINES; i++)
     {
-        uint16_t y = CONSOLE_START_Y + i * CONSOLE_FONT_H;
-        // 先用空格覆盖清空当前行旧内容，防止短字符串无法完全覆盖长字符串
-        char blank_line[CONSOLE_MAX_COLS + 1];
-        memset(blank_line, ' ', CONSOLE_MAX_COLS);
-        blank_line[CONSOLE_MAX_COLS] = '\0';
-        st7789_write_string(0, y, blank_line, CONSOLE_COLOR_BG, CONSOLE_FONT);
-
-        // 如果该行有内容则写入
         if (console_buffer[i][0] != '\0')
         {
+            uint16_t y = CONSOLE_START_Y + i * CONSOLE_FONT_H;
             st7789_write_string(0, y, console_buffer[i], CONSOLE_COLOR_TXT, CONSOLE_FONT);
         }
     }
 }
-
-/**
- * @brief 清空控制台日志
- */
 void console_clear(void)
 {
     memset(console_buffer, 0, sizeof(console_buffer));
@@ -310,30 +314,20 @@ void console_clear(void)
     console_refresh_all();
 }
 
-/**
- * @brief 向上滚动一行
- */
 static void console_scroll_up(void)
 {
-    
-    // 所有行依次向上搬移一行
     for (uint8_t i = 0; i < CONSOLE_MAX_LINES - 1; i++)
     {
         strncpy(console_buffer[i], console_buffer[i + 1], CONSOLE_MAX_COLS);
         console_buffer[i][CONSOLE_MAX_COLS] = '\0';
     }
-    // 清空最后一行
     memset(console_buffer[CONSOLE_MAX_LINES - 1], 0, sizeof(console_buffer[0]));
 }
 
-/**
- * @brief 输出一行文本到控制台（自动换行与滚屏）
- */
 void console_print(const char *str)
 {
     if (str == NULL) return;
 
-    // 1. 无论在哪个页面，RAM 缓冲区照常更新与滚屏
     if (current_line >= CONSOLE_MAX_LINES)
     {
         console_scroll_up();
@@ -344,16 +338,12 @@ void console_print(const char *str)
     console_buffer[current_line][CONSOLE_MAX_COLS] = '\0';
     current_line++;
 
-    // 2. 核心保护：只有当前处于控制台页面时，才真正操作 LCD 刷屏
     if (current_page == PAGE_CONSOLE)
     {
         console_refresh_all();
     }
 }
 
-/**
- * @brief 格式化输出函数（类似 printf）
- */
 void console_printf(const char *fmt, ...)
 {
     char log_buf[128];
@@ -365,14 +355,10 @@ void console_printf(const char *fmt, ...)
     console_print(log_buf);
 }
 
-/**
- * @brief 进入控制台页面初始化UI
- */
 void page_console(void)
 {
     current_page = PAGE_CONSOLE;
 
-    // 1. 清空顶栏并重绘标题与分割线
     st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "CONSOLE", ST7789_COLOR_GREEN, ST7789_FONT_24);
     for (int i = 0; i < 320; i++)
@@ -380,38 +366,26 @@ void page_console(void)
         st7789_draw_point(i, 24, ST7789_COLOR_GREEN);
     }
 
-    // 2. 关键修复：彻底擦除上一页在主体内容区域（Y: 25 ~ 239）残留的所有图像
     st7789_fill_rect(0, 25, 319, 239, ST7789_COLOR_BLACK);
-
-    // 3. 重新绘制控制台 RAM 缓冲区里的文本
     console_refresh_all();
 }
-/* ==================================================================== */
-/*                            波形页实现 (PAGE_WAVE)                     */
-/* ==================================================================== */
 
-/**
- * @brief 绘制示波器十字网格与刻度
- */
 void wave_draw_grid(void)
 {
     uint16_t center_y = WAVE_CENTER_Y;
 
-    // 1. 中心横轴 (Y = 132)
     for (uint16_t x = 0; x < 320; x += 4) {
         st7789_draw_point(x, center_y, ST7789_COLOR_WHITE);
     }
 
-    // 2. 中心纵轴 (X = 160)：从 30 像素到 234 像素，步长为 6，每大格内正好 5 个小白格
     for (uint16_t y = 30; y <= 234; y += 6) {
         st7789_draw_point(160, y, ST7789_COLOR_WHITE);
     }
 
-    // 3. 水平辅助蓝点：避开 x == 160，防止纵轴上的白点被蓝色盖掉
     for (uint16_t y = 42; y <= 222; y += 30) {
         if (y == center_y) continue;
         for (uint16_t x = 0; x < 320; x += 16) {
-            if (x == 160) continue; // 关键：保护纵轴白点不被覆盖
+            if (x == 160) continue;
             st7789_draw_point(x, y, ST7789_COLOR_BLUE);
         }
     }
@@ -421,44 +395,31 @@ void page_wave(void)
 {
     current_page = PAGE_WAVE;
 
-    // 1. 刷新顶栏 (0~24)
     st7789_fill_rect(0, 0, 319, 24, ST7789_COLOR_BLACK);
     st7789_write_string(1, 1, "WAVE", ST7789_COLOR_GREEN, ST7789_FONT_24);
-    
-    // 显示当前水平时基与垂直档位
+
     ui_update_topbar_timebase(s_current_tb_idx, 1);
     ui_update_topbar_volt_div();
 
     char strtemp[4] = {'\0'};
-    snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale); 
+    snprintf(strtemp, sizeof(strtemp), "%dX", g_v_scale);
     st7789_write_string(280, 1, strtemp, ST7789_COLOR_RED, ST7789_FONT_24);
 
     for (int i = 0; i < 320; i++) {
         st7789_draw_point(i, 24, ST7789_COLOR_GREEN);
     }
 
-    // 2. 抹除主体区域并画网格
     st7789_fill_rect(0, 25, 319, 239, ST7789_COLOR_BLACK);
     wave_draw_grid();
 }
-/* ==================================================================== */
-/*                            参数页实现 (PAGE_PARAM)                    */
-/* ==================================================================== */
 
-/**
- * @brief 绘制/刷新所有测量参数项
- */
-/**
- * @brief 增量差分刷新参数页（仅刷新变动项）
- */
 void param_refresh_all(void)
 {
     char val_str[32];
 
-    // 1. 频率 (Freq)
     if (fabsf(current_params.freq - last_params.freq) >= 0.2f) {
         last_params.freq = current_params.freq;
-        st7789_fill_rect(60, 40, 150, 56, ST7789_COLOR_BLACK);
+        st7789_fill_rect(60, 40, 160, 56, ST7789_COLOR_BLACK);
         if (current_params.freq >= 1000.0f) {
             snprintf(val_str, sizeof(val_str), "%6.2f kHz", current_params.freq / 1000.0f);
         } else {
@@ -467,49 +428,39 @@ void param_refresh_all(void)
         st7789_write_string(60, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
 
-    // 2. 平均电压 (Vavg) - 替换原 Duty 区域
     if (fabsf(current_params.vavg - last_params.vavg) >= 0.01f) {
         last_params.vavg = current_params.vavg;
-        st7789_fill_rect(220, 40, 300, 56, ST7789_COLOR_BLACK);
+        st7789_fill_rect(220, 40, 310, 56, ST7789_COLOR_BLACK);
         snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vavg);
         st7789_write_string(220, 40, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
 
-    // 3. 峰峰值 (Vpp)
     if (fabsf(current_params.vpp - last_params.vpp) >= 0.01f) {
         last_params.vpp = current_params.vpp;
-        st7789_fill_rect(60, 80, 150, 96, ST7789_COLOR_BLACK);
+        st7789_fill_rect(60, 80, 160, 96, ST7789_COLOR_BLACK);
         snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vpp);
         st7789_write_string(60, 80, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
 
-    // 4. 最大电压 (Vmax)
     if (fabsf(current_params.vmax - last_params.vmax) >= 0.01f) {
         last_params.vmax = current_params.vmax;
-        st7789_fill_rect(60, 120, 150, 136, ST7789_COLOR_BLACK);
+        st7789_fill_rect(60, 115, 160, 131, ST7789_COLOR_BLACK);
         snprintf(val_str, sizeof(val_str), "%6.2f V ", current_params.vmax);
-        st7789_write_string(60, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+        st7789_write_string(60, 115, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
 
-    // 5. 最小电压 (Vmin)
     if (fabsf(current_params.vmin - last_params.vmin) >= 0.01f) {
         last_params.vmin = current_params.vmin;
-        st7789_fill_rect(220, 120, 300, 136, ST7789_COLOR_BLACK);
+        st7789_fill_rect(220, 115, 310, 131, ST7789_COLOR_BLACK);
         snprintf(val_str, sizeof(val_str), "%5.2f V", current_params.vmin);
-        st7789_write_string(220, 120, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
+        st7789_write_string(220, 115, val_str, ST7789_COLOR_WHITE, ST7789_FONT_16);
     }
 }
-/**
- * @brief 更新测量参数数据（带页面状态保护）
- */
+
 void param_set_data(const MeasureParams_t *params)
 {
     if (params == NULL) return;
-
-    // 1. 数据更新进 RAM 结构体
-    memcpy(&current_params, params, sizeof(MeasureParams_t));
-
-    // 2. 只有当前处于参数页时才刷新屏幕，防止破坏其他页面画面
+    memcpy((void *)&current_params, params, sizeof(MeasureParams_t));
     if (current_page == PAGE_PARAM) {
         param_refresh_all();
     }
@@ -524,15 +475,23 @@ void page_param(void)
     for (int i = 0; i < 320; i++) st7789_draw_point(i, UI_HEADER_H, ST7789_COLOR_GREEN);
     st7789_fill_rect(0, UI_BODY_START_Y, 319, UI_BODY_END_Y, ST7789_COLOR_BLACK);
 
-    // 仅绘制 5 个固定项的标签
-    st7789_write_string(10, 40, "Freq:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    // 上半部分：5 个实时测量参数
+    st7789_write_string(10, 40,  "Freq:", ST7789_COLOR_GREEN, ST7789_FONT_16);
     st7789_write_string(170, 40, "Vavg:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    st7789_write_string(10, 80, "Vpp :", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    st7789_write_string(10, 120, "Vmax:", ST7789_COLOR_GREEN, ST7789_FONT_16);
-    st7789_write_string(170, 120, "Vmin:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(10, 80,  "Vpp :", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(10, 115, "Vmax:", ST7789_COLOR_GREEN, ST7789_FONT_16);
+    st7789_write_string(170, 115,"Vmin:", ST7789_COLOR_GREEN, ST7789_FONT_16);
 
-    st7789_write_string(10, 170, "CH1 Coupling: DC", ST7789_COLOR_WHITE, ST7789_FONT_16);
-    st7789_write_string(10, 195, "ADC Sampling: DMA Circular", ST7789_COLOR_WHITE, ST7789_FONT_16);
+    // 下半部分：替换原两行文字为简易波形区 (Y: 144 ~ 239)
+    for (uint16_t x = 0; x < 320; x++) {
+        st7789_draw_point(x, PARAM_WAVE_DIV_Y, ST7789_COLOR_GREEN);
+    }
+    for (uint16_t x = 0; x < 320; x += 4) {
+        st7789_draw_point(x, PARAM_WAVE_CENTER_Y, ST7789_COLOR_WHITE);
+    }
+    for (uint16_t y = PARAM_WAVE_TOP; y <= PARAM_WAVE_BOTTOM; y += 6) {
+        st7789_draw_point(160, y, ST7789_COLOR_WHITE);
+    }
 
     last_params.freq = -1.0f;
     last_params.vavg = -999.0f;
@@ -543,53 +502,38 @@ void page_param(void)
     param_refresh_all();
 }
 
-
-
-void page_prev(PAGE* current_page) {
-    
-
-}
-
-void screen_clear() {
-    
-}
-
-void page_next(PAGE* current_page) {
-    
-}
+void page_prev(PAGE* current_page) {}
+void screen_clear(void) {}
+void page_next(PAGE* current_page) {}
 
 void set_y_scale(uint8_t y_scale) {
     g_v_scale = y_scale;
 }
 
-// 时基放大（分度值变小，波形水平拉伸）
 void x_zoom_in(void)
 {
     if (s_current_tb_idx > 0) {
         s_current_tb_idx--;
-        s_auto_tb_enable = 0; // 手动干预后锁定，关闭自适应
+        s_auto_tb_enable = 0;
     }
 }
 
-// 时基缩小（分度值变大，波形水平压缩）
 void x_zoom_out(void)
 {
     if (s_current_tb_idx < TB_TABLE_SIZE - 1) {
         s_current_tb_idx++;
-        s_auto_tb_enable = 0; // 手动干预后锁定，关闭自适应
+        s_auto_tb_enable = 0;
     }
 }
 
-// 复位视图：垂直、水平偏移与时基均恢复初始状态
 void reset_view(void)
 {
     g_v_scale = 1;
     s_current_tb_idx = TB_MID_INDEX;
     s_auto_tb_enable = 1;
-    g_x_offset = 0; // 坐标居中复位
+    g_x_offset = 0;
 }
 
-// 波形左移（显示更靠后的样点）
 void x_shift_left(void)
 {
     if (g_x_offset < X_SHIFT_MAX) {
@@ -597,7 +541,6 @@ void x_shift_left(void)
     }
 }
 
-// 波形右移（显示更靠前的样点）
 void x_shift_right(void)
 {
     if (g_x_offset > -X_SHIFT_MAX) {
@@ -605,8 +548,4 @@ void x_shift_right(void)
     }
 }
 
-void run_stop_toggle() {
-
-}
-
-
+void run_stop_toggle(void) {}
